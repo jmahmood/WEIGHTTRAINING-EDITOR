@@ -1,0 +1,31 @@
+{
+  "name": "Sprint 1 Test Plan", 
+  "unit": "kg",
+  "dictionary": {
+    "BENCH.BB.FLAT": "Flat Barbell Bench Press",
+    "SQUAT.BB.BACK": "Back Squat"
+  },
+  "groups": {
+    "GROUP_UPPER": ["BENCH.BB.FLAT"]
+  },
+  "schedule": [
+    {
+      "day": 1,
+      "label": "Test Day",
+      "segments": [
+        {
+          "type": "straight",
+          "ex": "BENCH.BB.FLAT",
+          "sets": 3,
+          "reps": {"min": 8, "max": 10},
+          "rpe": 8.0,
+          "rest_sec": 120
+        },
+        {
+          "type": "comment", 
+          "text": "This is a test comment segment"
+        }
+      ]
+    }
+  ]
+}

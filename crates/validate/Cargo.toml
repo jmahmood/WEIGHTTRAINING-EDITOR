@@ -1,0 +1,12 @@
+[package]
+name = "weightlifting-validate"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+weightlifting-core = { path = "../core" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+jsonschema = "0.17"
+regex = { workspace = true }
+thiserror = { workspace = true }

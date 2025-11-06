@@ -1,0 +1,13 @@
+[package]
+name = "weightlifting-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+thiserror = { workspace = true }
+dirs = "5.0"
+chrono = { workspace = true }
+md5 = { workspace = true }

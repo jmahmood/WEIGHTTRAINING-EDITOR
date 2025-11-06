@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Weightlifting Editor
+Comment=An editor for weightlifting JSON plan files ..
+Exec=/home/jawaad/weightlifting-desktop/target/release/weightlifting-editor %U
+TryExec=/home/jawaad/weightlifting-desktop/target/release/weightlifting-editor
+Icon=/home/jawaad/weightlifting-desktop/weightlifting.png
+Terminal=false
+Categories=Utility;Development;
+Keywords=weight;weightlifting;gtk;tool;

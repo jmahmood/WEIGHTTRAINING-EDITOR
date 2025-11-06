@@ -1,0 +1,21 @@
+[package]
+name = "weightlifting-editor-gtk"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "weightlifting-editor"
+path = "src/main.rs"
+
+[dependencies]
+weightlifting-core = { path = "../../crates/core" }
+weightlifting-validate = { path = "../../crates/validate" }
+gtk4 = "0.8"
+gdk4 = "0.8"
+libadwaita = "0.6"
+glib = "0.19"
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { version = "1.0", features = ["full"] }
+rusqlite = { version = "0.31", features = ["bundled"] }
+chrono = { version = "0.4", default-features = false, features = ["clock"] }

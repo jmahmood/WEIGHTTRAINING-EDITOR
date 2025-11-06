@@ -1,0 +1,94 @@
+use dirs::{data_dir, state_dir, cache_dir};
+use std::path::PathBuf;
+use std::fs;
+
+pub struct AppPaths {
+    pub data_dir: PathBuf,
+    pub state_dir: PathBuf,
+    pub cache_dir: PathBuf,
+}
+
+impl AppPaths {
+    pub fn new() -> Result<Self, std::io::Error> {
+        let app_name = "weightlifting-desktop";
+        
+        // XDG_DATA_HOME or ~/.local/share
+        let data_dir = data_dir()
+            .ok_or_else(|| std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "Could not determine data directory"
+            ))?
+            .join(app_name);
+
+        // XDG_STATE_HOME or ~/.local/state  
+        let state_dir = state_dir()
+            .ok_or_else(|| std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "Could not determine state directory"
+            ))?
+            .join(app_name);
+
+        // XDG_CACHE_HOME or ~/.cache
+        let cache_dir = cache_dir()
+            .ok_or_else(|| std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "Could not determine cache directory"
+            ))?
+            .join(app_name);
+
+        // Create directories if they don't exist
+        fs::create_dir_all(&data_dir)?;
+        fs::create_dir_all(&state_dir)?;
+        fs::create_dir_all(&cache_dir)?;
+
+        Ok(Self {
+            data_dir,
+            state_dir,
+            cache_dir,
+        })
+    }
+
+    /// Get path for active plan storage: ~/.local/share/weightlifting-desktop/plans/<plan_id>/<version>.json
+    pub fn active_plan_path(&self, plan_id: &str, version: &str) -> PathBuf {
+        self.data_dir
+            .join("plans")
+            .join(plan_id)
+            .join(format!("{}.json", version))
+    }
+
+    /// Get directory for plan versions: ~/.local/share/weightlifting-desktop/plans/<plan_id>/
+    pub fn plan_dir(&self, plan_id: &str) -> PathBuf {
+        self.data_dir.join("plans").join(plan_id)
+    }
+
+    /// Get path for draft storage: ~/.local/state/weightlifting-desktop/drafts/<plan_id>.json
+    pub fn draft_path(&self, plan_id: &str) -> PathBuf {
+        self.state_dir
+            .join("drafts")
+            .join(format!("{}.json", plan_id))
+    }
+
+    /// Get drafts directory: ~/.local/state/weightlifting-desktop/drafts/
+    pub fn drafts_dir(&self) -> PathBuf {
+        self.state_dir.join("drafts")
+    }
+
+    /// Get cache directory for metrics: ~/.cache/weightlifting-desktop/metrics/
+    pub fn metrics_cache_dir(&self) -> PathBuf {
+        self.cache_dir.join("metrics")
+    }
+
+    /// Ensure required subdirectories exist
+    pub fn ensure_subdirs(&self) -> Result<(), std::io::Error> {
+        fs::create_dir_all(self.data_dir.join("plans"))?;
+        fs::create_dir_all(self.drafts_dir())?;
+        fs::create_dir_all(self.metrics_cache_dir())?;
+        Ok(())
+    }
+
+    /// Path for append-only media attachments JSONL (canonical)
+    /// Example: ~/.local/share/weightlifting-desktop/media_attachments.jsonl
+    pub fn media_attachments_path(&self) -> PathBuf {
+        self.data_dir.join("media_attachments.jsonl")
+    }
+}

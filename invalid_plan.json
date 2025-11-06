@@ -1,0 +1,24 @@
+{
+  "name": "Invalid Test Plan",
+  "unit": "kg",
+  "dictionary": {
+    "SQUAT.BB.BACK": "Barbell Back Squat"
+  },
+  "groups": {},
+  "schedule": [
+    {
+      "day": 1,
+      "label": "Test Day",
+      "segments": [
+        {
+          "type": "straight",
+          "ex": "NONEXISTENT.EXERCISE",
+          "sets": 3,
+          "reps": {"min": 8, "max": 10},
+          "time_sec": 45,
+          "rest_sec": 120
+        }
+      ]
+    }
+  ]
+}
