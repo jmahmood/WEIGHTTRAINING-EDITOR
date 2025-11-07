@@ -34,7 +34,9 @@ impl RecentFilesService {
         // Insert at front
         uris.insert(0, uri.to_string());
         // Trim to max
-        if uris.len() > max_items { uris.truncate(max_items); }
+        if uris.len() > max_items {
+            uris.truncate(max_items);
+        }
     }
 
     /// Update the recent files list from the system's recent manager
@@ -102,10 +104,16 @@ impl RecentFilesService {
 
         let mut filtered: Vec<String> = Vec::new();
         for info in infos.into_iter() {
-            if !info.exists() || !info.is_local() { continue; }
-            if !mime_whitelist.is_empty() && !mime_whitelist.contains(&info.mime_type().as_str()) { continue; }
+            if !info.exists() || !info.is_local() {
+                continue;
+            }
+            if !mime_whitelist.is_empty() && !mime_whitelist.contains(&info.mime_type().as_str()) {
+                continue;
+            }
             filtered.push(info.uri().to_string());
-            if filtered.len() >= max_items { break; }
+            if filtered.len() >= max_items {
+                break;
+            }
         }
 
         let mut mru = self.recent_uris.lock().unwrap();
@@ -118,7 +126,9 @@ impl RecentFilesService {
             if filtered.contains(&uri) {
                 seen.insert(uri.clone());
                 merged.push(uri);
-                if merged.len() >= max_items { break; }
+                if merged.len() >= max_items {
+                    break;
+                }
             }
         }
 
@@ -126,7 +136,9 @@ impl RecentFilesService {
             for uri in filtered.into_iter() {
                 if !seen.contains(&uri) {
                     merged.push(uri);
-                    if merged.len() >= max_items { break; }
+                    if merged.len() >= max_items {
+                        break;
+                    }
                 }
             }
         }

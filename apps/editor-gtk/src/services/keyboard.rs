@@ -1,21 +1,36 @@
+use crate::operations::plan::{
+    create_new_plan, promote_current_plan, save_as_current_plan, save_current_plan,
+};
+use crate::operations::segment::{
+    clear_segment_selection, group_selected_segments, undo_last_action, ungroup_selected_segments,
+};
+use crate::state::segment::{
+    add_segment_to_focused_day, edit_focused_segment, move_selected_segments_down,
+    move_selected_segments_up, navigate_to_next_day, navigate_to_next_segment,
+    navigate_to_previous_day, navigate_to_previous_segment, perform_segment_deletion,
+};
 use crate::state::AppState;
-use crate::operations::plan::{create_new_plan, save_current_plan, save_as_current_plan, promote_current_plan};
-use crate::operations::segment::{group_selected_segments, ungroup_selected_segments, clear_segment_selection, undo_last_action};
-use crate::state::segment::{move_selected_segments_up, move_selected_segments_down, perform_segment_deletion, navigate_to_previous_segment, navigate_to_next_segment, navigate_to_previous_day, navigate_to_next_day, edit_focused_segment, add_segment_to_focused_day};
 use crate::ui::plan::open_plan_dialog;
 use crate::ui::plan::show_help_dialog;
-use gtk4::{ApplicationWindow, gdk::{Key, ModifierType}, EventControllerKey};
-use gtk4::prelude::*;
 use glib::clone;
+use gtk4::prelude::*;
+use gtk4::{
+    gdk::{Key, ModifierType},
+    ApplicationWindow, EventControllerKey,
+};
 use std::sync::{Arc, Mutex};
 use weightlifting_core::AppPaths;
 
-pub fn setup_keyboard_shortcuts(window: &ApplicationWindow, state: Arc<Mutex<AppState>>, paths: Arc<AppPaths>) {
+pub fn setup_keyboard_shortcuts(
+    window: &ApplicationWindow,
+    state: Arc<Mutex<AppState>>,
+    paths: Arc<AppPaths>,
+) {
     let key_controller = EventControllerKey::new();
-    
+
     // Set propagation phase to CAPTURE to intercept events before widgets handle them
     key_controller.set_propagation_phase(gtk4::PropagationPhase::Capture);
-    
+
     key_controller.connect_key_pressed(clone!(@strong state, @strong paths, @weak window => @default-return glib::Propagation::Proceed, move |_, key, _, modifiers| {
         // Check if focus is in a text entry widget - if so, don't intercept letter keys
         let focus_is_text_entry = if let Some(focus) = GtkWindowExt::focus(&window) {
@@ -136,6 +151,6 @@ pub fn setup_keyboard_shortcuts(window: &ApplicationWindow, state: Arc<Mutex<App
             _ => glib::Propagation::Proceed
         }
     }));
-    
+
     window.add_controller(key_controller);
 }

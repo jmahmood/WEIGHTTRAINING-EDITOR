@@ -1,8 +1,8 @@
-use crate::state::AppState;
 use crate::operations::plan::create_new_plan;
-use gtk4::{Box, Orientation, Label, Button, ScrolledWindow};
+use crate::state::AppState;
 use glib::clone;
 use gtk4::prelude::*;
+use gtk4::{Box, Button, Label, Orientation, ScrolledWindow};
 use std::sync::{Arc, Mutex};
 use weightlifting_core::AppPaths;
 

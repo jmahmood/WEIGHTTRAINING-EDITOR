@@ -1,11 +1,14 @@
 // Complex dialog extracted from complex_dialogs.rs
 
-use crate::state::AppState;
 use super::components::create_exercise_search_section_complex;
+use crate::state::AppState;
 use glib::clone;
-use gtk4::prelude::*;
 use gtk4::prelude::EditableExt;
-use gtk4::{Orientation, Label, ComboBoxText, Box as GtkBox, Entry, SpinButton, Dialog, DialogFlags, ResponseType, Expander};
+use gtk4::prelude::*;
+use gtk4::{
+    Box as GtkBox, ComboBoxText, Dialog, DialogFlags, Entry, Expander, Label, Orientation,
+    ResponseType, SpinButton,
+};
 use std::sync::{Arc, Mutex};
 
 use crate::operations::plan_ops::add_complex_to_plan;
@@ -15,7 +18,10 @@ pub fn show_add_complex_dialog(state: Arc<Mutex<AppState>>) {
         Some("Add Complex"),
         crate::ui::util::parent_for_dialog().as_ref(),
         DialogFlags::MODAL,
-        &[("Cancel", ResponseType::Cancel), ("Add", ResponseType::Accept)]
+        &[
+            ("Cancel", ResponseType::Cancel),
+            ("Add", ResponseType::Accept),
+        ],
     );
 
     dialog.set_default_size(500, 400);
@@ -41,7 +47,8 @@ pub fn show_add_complex_dialog(state: Arc<Mutex<AppState>>) {
     mode_combo.set_active(Some(0));
 
     // Anchor Exercise Search Widget (Default)
-    let (anchor_search_expander, anchor_ex_entry, _, _anchor_search_widget) = create_exercise_search_section_complex();
+    let (anchor_search_expander, anchor_ex_entry, _, _anchor_search_widget) =
+        create_exercise_search_section_complex();
     content.append(&anchor_search_expander);
 
     // Manual Input Fields (Advanced option)
@@ -68,13 +75,15 @@ pub fn show_add_complex_dialog(state: Arc<Mutex<AppState>>) {
     anchor_kg_entry.set_sensitive(false);
 
     // Toggle between percentage and fixed kg mode
-    mode_combo.connect_changed(clone!(@strong anchor_pct_entry, @strong anchor_kg_entry => move |combo| {
-        if let Some(text) = combo.active_text() {
-            let is_pct_mode = text.as_str() == "pct_1rm";
-            anchor_pct_entry.set_sensitive(is_pct_mode);
-            anchor_kg_entry.set_sensitive(!is_pct_mode);
-        }
-    }));
+    mode_combo.connect_changed(
+        clone!(@strong anchor_pct_entry, @strong anchor_kg_entry => move |combo| {
+            if let Some(text) = combo.active_text() {
+                let is_pct_mode = text.as_str() == "pct_1rm";
+                anchor_pct_entry.set_sensitive(is_pct_mode);
+                anchor_kg_entry.set_sensitive(!is_pct_mode);
+            }
+        }),
+    );
 
     // Sets configuration
     let sets_label = Label::new(Some("Sets:"));
@@ -130,13 +139,13 @@ pub fn show_add_complex_dialog(state: Arc<Mutex<AppState>>) {
             };
 
             add_complex_to_plan(
-                state.clone(), 
-                mode, 
-                anchor_ex, 
-                pct, 
-                kg, 
-                sets, 
-                seq_ex, 
+                state.clone(),
+                mode,
+                anchor_ex,
+                pct,
+                kg,
+                sets,
+                seq_ex,
                 seq_reps
             );
         }

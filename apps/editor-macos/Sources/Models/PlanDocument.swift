@@ -119,6 +119,12 @@ class PlanDocument: ObservableObject {
         updatePlan(updatedJSON)
     }
 
+    /// Add an exercise entry to the dictionary
+    func addExercise(code: String, name: String) throws {
+        let updatedJSON = try RustBridge.addExercise(code: code, name: name, to: planJSON)
+        updatePlan(updatedJSON)
+    }
+
     /// Validate the plan
     func validate() throws -> ValidationResult {
         try RustBridge.validatePlan(planJSON)

@@ -3,18 +3,24 @@
 use crate::state::AppState;
 use glib::clone;
 use gtk4::prelude::*;
-use gtk4::{Orientation, Label, StringList, ListView, ScrolledWindow, NoSelection, SignalListItemFactory, StringObject, Box as GtkBox, SpinButton, Button, Dialog, DialogFlags, ResponseType};
+use gtk4::{
+    Box as GtkBox, Button, Dialog, DialogFlags, Label, ListView, NoSelection, Orientation,
+    ResponseType, ScrolledWindow, SignalListItemFactory, SpinButton, StringList, StringObject,
+};
 use std::sync::{Arc, Mutex};
 
-use crate::ui::exercise_menus::exercise_data::CircuitExerciseData;
 use crate::operations::plan_ops::add_circuit_to_plan;
+use crate::ui::exercise_menus::exercise_data::CircuitExerciseData;
 
 pub fn show_add_circuit_dialog(state: Arc<Mutex<AppState>>) {
     let dialog = Dialog::with_buttons(
         Some("Create Circuit"),
         crate::ui::util::parent_for_dialog().as_ref(),
         DialogFlags::MODAL,
-        &[("Cancel", ResponseType::Cancel), ("Create", ResponseType::Accept)]
+        &[
+            ("Cancel", ResponseType::Cancel),
+            ("Create", ResponseType::Accept),
+        ],
     );
     crate::ui::util::standardize_dialog(&dialog);
     dialog.set_default_size(500, 400);
@@ -77,7 +83,11 @@ pub fn show_add_circuit_dialog(state: Arc<Mutex<AppState>>) {
         list_item.set_child(Some(&label));
     });
     factory.connect_bind(move |_, list_item| {
-        let string_object = list_item.item().unwrap().downcast::<StringObject>().unwrap();
+        let string_object = list_item
+            .item()
+            .unwrap()
+            .downcast::<StringObject>()
+            .unwrap();
         let label = list_item.child().unwrap().downcast::<Label>().unwrap();
         label.set_text(&string_object.string());
     });
@@ -110,21 +120,26 @@ pub fn show_add_circuit_dialog(state: Arc<Mutex<AppState>>) {
     content.append(&exercise_buttons_box);
 
     // Store exercises data for the circuit
-    let exercises_data = std::rc::Rc::new(std::cell::RefCell::new(Vec::<CircuitExerciseData>::new()));
+    let exercises_data =
+        std::rc::Rc::new(std::cell::RefCell::new(Vec::<CircuitExerciseData>::new()));
 
     // Add exercise button handler
-    add_exercise_btn.connect_clicked(clone!(@strong exercises_model, @strong exercises_data => move |_| {
-        show_add_circuit_exercise_dialog(exercises_model.clone(), exercises_data.clone());
-    }));
+    add_exercise_btn.connect_clicked(
+        clone!(@strong exercises_model, @strong exercises_data => move |_| {
+            show_add_circuit_exercise_dialog(exercises_model.clone(), exercises_data.clone());
+        }),
+    );
 
     // Remove exercise button handler (removes last added exercise)
-    remove_exercise_btn.connect_clicked(clone!(@strong exercises_model, @strong exercises_data => move |_| {
-        let count = exercises_data.borrow().len();
-        if count > 0 {
-            exercises_model.remove(count as u32 - 1);
-            exercises_data.borrow_mut().remove(count - 1);
-        }
-    }));
+    remove_exercise_btn.connect_clicked(
+        clone!(@strong exercises_model, @strong exercises_data => move |_| {
+            let count = exercises_data.borrow().len();
+            if count > 0 {
+                exercises_model.remove(count as u32 - 1);
+                exercises_data.borrow_mut().remove(count - 1);
+            }
+        }),
+    );
 
     // Move up button handler (moves last exercise up)
     move_up_btn.connect_clicked(clone!(@strong exercises_model, @strong exercises_data => move |_| {
@@ -206,7 +221,10 @@ fn show_add_circuit_exercise_dialog(
         Some("Add Exercise to Circuit"),
         crate::ui::util::parent_for_dialog().as_ref(),
         DialogFlags::MODAL,
-        &[("Cancel", ResponseType::Cancel), ("Add", ResponseType::Accept)]
+        &[
+            ("Cancel", ResponseType::Cancel),
+            ("Add", ResponseType::Accept),
+        ],
     );
 
     let content = GtkBox::builder()

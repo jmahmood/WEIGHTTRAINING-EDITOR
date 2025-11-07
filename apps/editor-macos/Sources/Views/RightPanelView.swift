@@ -29,17 +29,32 @@ struct DictionaryTabView: View {
     @ObservedObject var plan: PlanDocument
 
     @State private var searchText = ""
+    @State private var showingAddExercise = false
 
     var body: some View {
         VStack {
             SearchField(text: $searchText, placeholder: "Search exercises...")
                 .padding()
 
+            HStack {
+                Spacer()
+                Button {
+                    showingAddExercise = true
+                } label: {
+                    Label("Add Exercise", systemImage: "plus.circle")
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            .padding(.horizontal)
+            .padding(.bottom, 8)
+
             let dictionary = plan.dictionary
             let filtered = searchText.isEmpty ? dictionary : dictionary.filter { key, value in
                 key.localizedCaseInsensitiveContains(searchText) ||
                 value.localizedCaseInsensitiveContains(searchText)
             }
+
+            Divider()
 
             if filtered.isEmpty {
                 Text(searchText.isEmpty ? "No exercises in dictionary" : "No matches")
@@ -57,6 +72,9 @@ struct DictionaryTabView: View {
                     .padding(.vertical, 4)
                 }
             }
+        }
+        .sheet(isPresented: $showingAddExercise) {
+            AddExerciseSheet(plan: plan)
         }
     }
 }
@@ -335,5 +353,239 @@ struct SearchField: View {
         .padding(8)
         .background(Color(NSColor.controlBackgroundColor))
         .cornerRadius(8)
+    }
+}
+
+struct NewExerciseForm: View {
+    @ObservedObject var plan: PlanDocument
+
+    @State private var selectedPatternIndex = 0
+    @State private var selectedImplementIndex = 0
+    @State private var customPattern = ""
+    @State private var customImplement = ""
+    @State private var variant = ""
+    @State private var exerciseName = ""
+    @State private var errorMessage: String?
+    @State private var successMessage: String?
+
+    private let patternOptions = [
+        "SQ","BP","DL","OHP","ROW","PULLUP","DIP","HINGE","LUNGE","CALF","CORE","CARRY","CURL","EXT","RAISE","Custom…"
+    ]
+
+    private let implementOptions = [
+        "BB","DB","KB","BW","CBL","MACH","SM","SWISS","TB","SSB","Custom…"
+    ]
+
+    private var isPatternCustom: Bool {
+        selectedPatternIndex == patternOptions.count - 1
+    }
+
+    private var isImplementCustom: Bool {
+        selectedImplementIndex == implementOptions.count - 1
+    }
+
+    private var patternValue: String? {
+        let raw = isPatternCustom ? customPattern : patternOptions[selectedPatternIndex]
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty { return nil }
+        return trimmed.uppercased()
+    }
+
+    private var implementValue: String? {
+        let raw = isImplementCustom ? customImplement : implementOptions[selectedImplementIndex]
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty { return nil }
+        return trimmed.uppercased()
+    }
+
+    private var variantValue: String {
+        variant.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+    }
+
+    private var trimmedName: String {
+        exerciseName.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var isFormReady: Bool {
+        patternValue != nil &&
+        implementValue != nil &&
+        !variantValue.isEmpty &&
+        !trimmedName.isEmpty
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading) {
+                    Text("Pattern")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Picker("", selection: $selectedPatternIndex) {
+                        ForEach(patternOptions.indices, id: \.self) { idx in
+                            Text(patternOptions[idx]).tag(idx)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                }
+
+                if isPatternCustom {
+                    TextField("Custom pattern", text: $customPattern)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 120)
+                }
+
+                Text(".")
+                    .font(.headline)
+
+                VStack(alignment: .leading) {
+                    Text("Implement")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Picker("", selection: $selectedImplementIndex) {
+                        ForEach(implementOptions.indices, id: \.self) { idx in
+                            Text(implementOptions[idx]).tag(idx)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                }
+
+                if isImplementCustom {
+                    TextField("Custom implement", text: $customImplement)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 120)
+                }
+
+                Text(".")
+                    .font(.headline)
+
+                TextField("Variant", text: $variant)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 120)
+            }
+
+            TextField("Exercise Name (e.g., Bench Press)", text: $exerciseName)
+                .textFieldStyle(.roundedBorder)
+
+            HStack {
+                Button(action: addExercise) {
+                    Label("Add Exercise", systemImage: "plus.circle")
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(!isFormReady)
+
+                Spacer()
+
+                Text("Code looks like PATTERN.IMPLEMENT.VARIANT")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            if let error = errorMessage {
+                Text(error)
+                    .font(.caption)
+                    .foregroundColor(.red)
+            } else if let success = successMessage {
+                Text(success)
+                    .font(.caption)
+                    .foregroundColor(.green)
+            }
+        }
+        .padding()
+        .background(Color(NSColor.controlBackgroundColor))
+        .cornerRadius(8)
+        .onChange(of: selectedPatternIndex) { _ in clearFeedback() }
+        .onChange(of: selectedImplementIndex) { _ in clearFeedback() }
+        .onChange(of: customPattern) { _ in clearFeedback() }
+        .onChange(of: customImplement) { _ in clearFeedback() }
+        .onChange(of: variant) { _ in clearFeedback() }
+        .onChange(of: exerciseName) { _ in clearFeedback() }
+    }
+
+    private func addExercise() {
+        guard let pattern = patternValue else {
+            errorMessage = "Select or enter a pattern"
+            successMessage = nil
+            return
+        }
+
+        guard let implement = implementValue else {
+            errorMessage = "Select or enter an implement"
+            successMessage = nil
+            return
+        }
+
+        let variantText = variantValue
+        guard !variantText.isEmpty else {
+            errorMessage = "Provide a variant code"
+            successMessage = nil
+            return
+        }
+
+        let nameText = trimmedName
+        guard !nameText.isEmpty else {
+            errorMessage = "Provide a display name"
+            successMessage = nil
+            return
+        }
+
+        let code = "\(pattern).\(implement).\(variantText)"
+
+        if plan.dictionary.keys.contains(code) {
+            errorMessage = "An exercise with code \(code) already exists"
+            successMessage = nil
+            return
+        }
+
+        if plan.dictionary.values.contains(where: { $0.caseInsensitiveCompare(nameText) == .orderedSame }) {
+            errorMessage = "An exercise with this name already exists"
+            successMessage = nil
+            return
+        }
+
+        do {
+            try plan.addExercise(code: code, name: nameText)
+            successMessage = "Added \(nameText)"
+            errorMessage = nil
+            variant = ""
+            exerciseName = ""
+            customPattern = ""
+            customImplement = ""
+        } catch {
+            errorMessage = error.localizedDescription
+            successMessage = nil
+        }
+    }
+
+    private func clearFeedback() {
+        errorMessage = nil
+        successMessage = nil
+    }
+}
+
+struct AddExerciseSheet: View {
+    @ObservedObject var plan: PlanDocument
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Add New Exercise")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                Spacer()
+                Button("Close") {
+                    dismiss()
+                }
+                .keyboardShortcut(.cancelAction)
+            }
+
+            Divider()
+
+            NewExerciseForm(plan: plan)
+
+            Spacer()
+        }
+        .padding()
+        .frame(minWidth: 520)
     }
 }

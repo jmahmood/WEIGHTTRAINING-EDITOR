@@ -1,7 +1,7 @@
+use crate::{Plan, PlanVersion, VersionedPlan};
 /// **Death to Windows!** - Export staging and manifest generation for Sprint 2
 /// Multi-plan export with conflict detection and dependency management
 use serde::{Deserialize, Serialize};
-use crate::{Plan, PlanVersion, VersionedPlan};
 use std::collections::{HashMap, HashSet};
 
 /// Export manifest describing a collection of plans
@@ -32,8 +32,8 @@ pub struct ExportPlanInfo {
 /// Dependency between plans in the export
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExportDependency {
-    pub from_plan: String,      // Plan ID that depends
-    pub to_plan: String,        // Plan ID being depended on
+    pub from_plan: String, // Plan ID that depends
+    pub to_plan: String,   // Plan ID being depended on
     pub dependency_type: DependencyType,
     pub description: String,
 }
@@ -42,9 +42,9 @@ pub struct ExportDependency {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum DependencyType {
-    Exercise,     // Shared exercise reference
-    Template,     // Shared scheme template
-    Sequence,     // Plan ordering dependency
+    Exercise, // Shared exercise reference
+    Template, // Shared scheme template
+    Sequence, // Plan ordering dependency
 }
 
 /// Conflict detected during export staging
@@ -61,19 +61,19 @@ pub struct ExportConflict {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ConflictType {
-    ExerciseMismatch,    // Same exercise code, different definitions
-    VersionMismatch,     // Incompatible plan versions
-    DuplicatePlan,       // Same plan ID with different content
-    MissingDependency,   // Referenced plan not included
+    ExerciseMismatch,  // Same exercise code, different definitions
+    VersionMismatch,   // Incompatible plan versions
+    DuplicatePlan,     // Same plan ID with different content
+    MissingDependency, // Referenced plan not included
 }
 
 /// Severity of export conflict
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ConflictSeverity {
-    Info,       // Informational, export can proceed
-    Warning,    // Potential issue, user should review
-    Error,      // Blocking issue, export cannot proceed
+    Info,    // Informational, export can proceed
+    Warning, // Potential issue, user should review
+    Error,   // Blocking issue, export cannot proceed
 }
 
 /// Export metadata and statistics
@@ -90,10 +90,10 @@ pub struct ExportMetadata {
 /// Compression information for the export
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompressionInfo {
-    pub algorithm: String,      // e.g., "gzip", "zip"
+    pub algorithm: String, // e.g., "gzip", "zip"
     pub original_size: u64,
     pub compressed_size: u64,
-    pub ratio: f64,             // Compression ratio
+    pub ratio: f64, // Compression ratio
 }
 
 /// Validation summary for all plans in export
@@ -120,9 +120,13 @@ impl ExportStager {
             dependencies: Vec::new(),
         }
     }
-    
+
     /// Add a plan to the export staging area
-    pub fn add_plan(&mut self, plan_id: String, versioned_plan: VersionedPlan) -> Result<(), String> {
+    pub fn add_plan(
+        &mut self,
+        plan_id: String,
+        versioned_plan: VersionedPlan,
+    ) -> Result<(), String> {
         // Check for duplicate plan IDs
         if let Some(existing) = self.plans.get(&plan_id) {
             if existing.version.to_string() != versioned_plan.version.to_string() {
@@ -139,27 +143,28 @@ impl ExportStager {
                 return Err("Duplicate plan ID with different versions".to_string());
             }
         }
-        
+
         self.plans.insert(plan_id, versioned_plan);
         Ok(())
     }
-    
+
     /// Analyze dependencies and conflicts across staged plans
     pub fn analyze(&mut self) {
         self.detect_exercise_conflicts();
         self.detect_dependencies();
         self.detect_missing_dependencies();
     }
-    
+
     /// Detect conflicts in exercise definitions
     fn detect_exercise_conflicts(&mut self) {
         let mut exercise_definitions: HashMap<String, (String, serde_json::Value)> = HashMap::new();
-        
+
         for (plan_id, versioned_plan) in &self.plans {
             for (exercise_code, exercise_def) in &versioned_plan.plan.dictionary {
                 let exercise_json = serde_json::to_value(exercise_def).unwrap_or_default();
-                
-                if let Some((existing_plan, existing_def)) = exercise_definitions.get(exercise_code) {
+
+                if let Some((existing_plan, existing_def)) = exercise_definitions.get(exercise_code)
+                {
                     if existing_def != &exercise_json {
                         self.conflicts.push(ExportConflict {
                             conflict_type: ConflictType::ExerciseMismatch,
@@ -169,28 +174,37 @@ impl ExportStager {
                             ),
                             affected_plans: vec![existing_plan.clone(), plan_id.clone()],
                             severity: ConflictSeverity::Warning,
-                            resolution: Some("Review exercise definitions and ensure consistency".to_string()),
+                            resolution: Some(
+                                "Review exercise definitions and ensure consistency".to_string(),
+                            ),
                         });
                     }
                 } else {
-                    exercise_definitions.insert(exercise_code.clone(), (plan_id.clone(), exercise_json));
+                    exercise_definitions
+                        .insert(exercise_code.clone(), (plan_id.clone(), exercise_json));
                 }
             }
         }
     }
-    
+
     /// Detect dependencies between plans
     fn detect_dependencies(&mut self) {
         for (plan_id, versioned_plan) in &self.plans {
-            let plan_exercises: HashSet<String> = versioned_plan.plan.dictionary.keys().cloned().collect();
+            let plan_exercises: HashSet<String> =
+                versioned_plan.plan.dictionary.keys().cloned().collect();
             let used_exercises = self.extract_used_exercises(&versioned_plan.plan);
-            
+
             // Find exercises used but not defined in this plan
             for used_exercise in &used_exercises {
                 if !plan_exercises.contains(used_exercise) {
                     // Find which other plans provide this exercise
                     for (other_plan_id, other_versioned_plan) in &self.plans {
-                        if other_plan_id != plan_id && other_versioned_plan.plan.dictionary.contains_key(used_exercise) {
+                        if other_plan_id != plan_id
+                            && other_versioned_plan
+                                .plan
+                                .dictionary
+                                .contains_key(used_exercise)
+                        {
                             self.dependencies.push(ExportDependency {
                                 from_plan: plan_id.clone(),
                                 to_plan: other_plan_id.clone(),
@@ -206,57 +220,69 @@ impl ExportStager {
             }
         }
     }
-    
+
     /// Extract all exercise codes used in a plan's segments
     fn extract_used_exercises(&self, plan: &Plan) -> HashSet<String> {
         let mut used = HashSet::new();
-        
+
         for day in &plan.schedule {
             for segment in &day.segments {
                 Self::extract_exercises_from_segment(segment, &mut used);
             }
         }
-        
+
         used
     }
-    
+
     /// Recursively extract exercise codes from a segment
     fn extract_exercises_from_segment(segment: &crate::Segment, used: &mut HashSet<String>) {
         use crate::Segment;
-        
+
         match segment {
-            Segment::Straight(s) => { used.insert(s.base.ex.clone()); },
-            Segment::Rpe(s) => { used.insert(s.base.ex.clone()); },
-            Segment::Percentage(s) => { used.insert(s.base.ex.clone()); },
-            Segment::Amrap(s) => { used.insert(s.base.ex.clone()); },
-            Segment::Scheme(s) => { used.insert(s.base.ex.clone()); },
-            Segment::Time(s) => { used.insert(s.base.ex.clone()); },
+            Segment::Straight(s) => {
+                used.insert(s.base.ex.clone());
+            }
+            Segment::Rpe(s) => {
+                used.insert(s.base.ex.clone());
+            }
+            Segment::Percentage(s) => {
+                used.insert(s.base.ex.clone());
+            }
+            Segment::Amrap(s) => {
+                used.insert(s.base.ex.clone());
+            }
+            Segment::Scheme(s) => {
+                used.insert(s.base.ex.clone());
+            }
+            Segment::Time(s) => {
+                used.insert(s.base.ex.clone());
+            }
             Segment::GroupChoose(g) => {
                 for sub_segment in &g.from {
                     Self::extract_exercises_from_segment(sub_segment, used);
                 }
-            },
+            }
             Segment::GroupRotate(g) => {
                 for sub_segment in &g.items {
                     Self::extract_exercises_from_segment(sub_segment, used);
                 }
-            },
+            }
             Segment::GroupOptional(g) => {
                 for sub_segment in &g.items {
                     Self::extract_exercises_from_segment(sub_segment, used);
                 }
-            },
+            }
             Segment::GroupSuperset(g) => {
                 for sub_segment in &g.items {
                     Self::extract_exercises_from_segment(sub_segment, used);
                 }
-            },
+            }
             _ => {
                 // Handle other segment types as needed
             }
         }
     }
-    
+
     /// Detect missing dependencies
     fn detect_missing_dependencies(&mut self) {
         for dependency in &self.dependencies.clone() {
@@ -269,37 +295,47 @@ impl ExportStager {
                     ),
                     affected_plans: vec![dependency.from_plan.clone()],
                     severity: ConflictSeverity::Error,
-                    resolution: Some(format!("Add plan '{}' to the export or remove the dependency", dependency.to_plan)),
+                    resolution: Some(format!(
+                        "Add plan '{}' to the export or remove the dependency",
+                        dependency.to_plan
+                    )),
                 });
             }
         }
     }
-    
+
     /// Generate export manifest
-    pub fn generate_manifest(&self, author: Option<String>, description: Option<String>) -> ExportManifest {
+    pub fn generate_manifest(
+        &self,
+        author: Option<String>,
+        description: Option<String>,
+    ) -> ExportManifest {
         let mut plan_infos = Vec::new();
         let mut total_segments = 0u32;
         let mut total_exercises = HashSet::new();
         let mut total_size = 0u64;
-        
+
         for (plan_id, versioned_plan) in &self.plans {
             let plan_json = serde_json::to_string(&versioned_plan.plan).unwrap_or_default();
             let plan_bytes = plan_json.as_bytes();
             let checksum = format!("{:x}", md5::compute(plan_bytes)); // Simple checksum
-            
+
             // Count segments in this plan
-            let plan_segments: u32 = versioned_plan.plan.schedule.iter()
+            let plan_segments: u32 = versioned_plan
+                .plan
+                .schedule
+                .iter()
                 .map(|day| day.segments.len() as u32)
                 .sum();
             total_segments += plan_segments;
-            
+
             // Collect exercises
             for exercise_code in versioned_plan.plan.dictionary.keys() {
                 total_exercises.insert(exercise_code.clone());
             }
-            
+
             total_size += plan_bytes.len() as u64;
-            
+
             plan_infos.push(ExportPlanInfo {
                 id: plan_id.clone(),
                 name: versioned_plan.plan.name.clone(),
@@ -310,7 +346,7 @@ impl ExportStager {
                 exercises: versioned_plan.plan.dictionary.keys().cloned().collect(),
             });
         }
-        
+
         ExportManifest {
             format_version: "1.0.0".to_string(),
             created_at: chrono::Utc::now().to_rfc3339(),
@@ -334,22 +370,25 @@ impl ExportStager {
             },
         }
     }
-    
+
     /// Check if export can proceed (no error-level conflicts)
     pub fn can_export(&self) -> bool {
-        !self.conflicts.iter().any(|c| matches!(c.severity, ConflictSeverity::Error))
+        !self
+            .conflicts
+            .iter()
+            .any(|c| matches!(c.severity, ConflictSeverity::Error))
     }
-    
+
     /// Get all conflicts
     pub fn get_conflicts(&self) -> &[ExportConflict] {
         &self.conflicts
     }
-    
+
     /// Get all dependencies
     pub fn get_dependencies(&self) -> &[ExportDependency] {
         &self.dependencies
     }
-    
+
     /// Get staged plans
     pub fn get_plans(&self) -> &HashMap<String, VersionedPlan> {
         &self.plans

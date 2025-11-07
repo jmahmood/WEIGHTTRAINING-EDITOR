@@ -1,7 +1,7 @@
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::path::PathBuf;
-use weightlifting_core::models::{Plan, Segment, Day};
+use weightlifting_core::models::{Day, Plan, Segment};
 use weightlifting_validate::PlanValidator;
 
 /// Represents a result returned from FFI calls
@@ -421,7 +421,10 @@ pub extern "C" fn ffi_group_add(
 
 /// Removes an exercise group from a plan
 #[no_mangle]
-pub extern "C" fn ffi_group_remove(plan_json: *const c_char, group_name: *const c_char) -> FFIResult {
+pub extern "C" fn ffi_group_remove(
+    plan_json: *const c_char,
+    group_name: *const c_char,
+) -> FFIResult {
     let plan_str = match c_str_to_string(plan_json) {
         Ok(s) => s,
         Err(e) => return create_error_result(e),
@@ -438,6 +441,53 @@ pub extern "C" fn ffi_group_remove(plan_json: *const c_char, group_name: *const 
     };
 
     plan.groups.remove(&name);
+
+    match serde_json::to_string(&plan) {
+        Ok(json) => create_success_result(json),
+        Err(e) => create_error_result(format!("Failed to serialize plan: {}", e)),
+    }
+}
+
+// ============================================================================
+// Dictionary Operations
+// ============================================================================
+
+/// Adds or updates an exercise dictionary entry in the plan
+#[no_mangle]
+pub extern "C" fn ffi_dictionary_add_entry(
+    plan_json: *const c_char,
+    exercise_code: *const c_char,
+    exercise_name: *const c_char,
+) -> FFIResult {
+    let plan_str = match c_str_to_string(plan_json) {
+        Ok(s) => s,
+        Err(e) => return create_error_result(e),
+    };
+
+    let code = match c_str_to_string(exercise_code) {
+        Ok(s) => s.trim().to_string(),
+        Err(e) => return create_error_result(e),
+    };
+
+    if code.is_empty() {
+        return create_error_result("Exercise code cannot be empty".to_string());
+    }
+
+    let name = match c_str_to_string(exercise_name) {
+        Ok(s) => s.trim().to_string(),
+        Err(e) => return create_error_result(e),
+    };
+
+    if name.is_empty() {
+        return create_error_result("Exercise name cannot be empty".to_string());
+    }
+
+    let mut plan: Plan = match serde_json::from_str(&plan_str) {
+        Ok(p) => p,
+        Err(e) => return create_error_result(format!("Failed to parse plan JSON: {}", e)),
+    };
+
+    plan.dictionary.insert(code, name);
 
     match serde_json::to_string(&plan) {
         Ok(json) => create_success_result(json),

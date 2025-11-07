@@ -1,8 +1,8 @@
 use crate::{ValidationError, ValidationErrorInfo, ValidationResult};
-use weightlifting_core::Plan;
 use jsonschema::JSONSchema;
 use regex::Regex;
 use std::sync::OnceLock;
+use weightlifting_core::Plan;
 
 static TEMPO_REGEX: OnceLock<Regex> = OnceLock::new();
 static EX_CODE_REGEX: OnceLock<Regex> = OnceLock::new();
@@ -33,7 +33,9 @@ impl PlanValidator {
         };
 
         // Compile schema and validate
-        if let Ok(schema_value) = serde_json::from_str::<serde_json::Value>(weightlifting_core::PLAN_SCHEMA_V0_3) {
+        if let Ok(schema_value) =
+            serde_json::from_str::<serde_json::Value>(weightlifting_core::PLAN_SCHEMA_V0_3)
+        {
             if let Ok(schema) = JSONSchema::compile(&schema_value) {
                 if let Err(validation_errors) = schema.validate(&plan_json) {
                     for error in validation_errors {
@@ -48,7 +50,7 @@ impl PlanValidator {
             }
         }
 
-        // Semantic validation  
+        // Semantic validation
         self.validate_semantic(plan, &mut errors, &mut warnings);
 
         ValidationResult { errors, warnings }
@@ -116,11 +118,13 @@ impl PlanValidator {
         _warnings: &mut [ValidationErrorInfo],
     ) {
         use weightlifting_core::Segment;
-        
+
         match segment {
             Segment::Straight(s) => {
                 self.validate_exercise(&s.base.ex, path, plan, errors);
-                if let Some(ag) = &s.base.alt_group { self.validate_alt_group(ag, path, plan, errors); }
+                if let Some(ag) = &s.base.alt_group {
+                    self.validate_alt_group(ag, path, plan, errors);
+                }
                 self.validate_reps_time_conflict(&s.reps, &s.time_sec, path, errors);
                 if let Some(tempo) = &s.tempo {
                     self.validate_tempo(tempo, path, errors);
@@ -128,7 +132,9 @@ impl PlanValidator {
             }
             Segment::Rpe(s) => {
                 self.validate_exercise(&s.base.ex, path, plan, errors);
-                if let Some(ag) = &s.base.alt_group { self.validate_alt_group(ag, path, plan, errors); }
+                if let Some(ag) = &s.base.alt_group {
+                    self.validate_alt_group(ag, path, plan, errors);
+                }
                 self.validate_reps_time_conflict(&s.reps, &s.time_sec, path, errors);
             }
             Segment::Comment(_) => {
@@ -148,14 +154,18 @@ impl PlanValidator {
             }
             Segment::Scheme(s) => {
                 self.validate_scheme_segment(s, path, plan, errors);
-                if let Some(ag) = &s.base.alt_group { self.validate_alt_group(ag, path, plan, errors); }
+                if let Some(ag) = &s.base.alt_group {
+                    self.validate_alt_group(ag, path, plan, errors);
+                }
             }
             Segment::Complex(c) => {
                 self.validate_complex_segment(c, path, plan, errors);
             }
             Segment::Time(t) => {
                 self.validate_exercise(&t.base.ex, path, plan, errors);
-                if let Some(ag) = &t.base.alt_group { self.validate_alt_group(ag, path, plan, errors); }
+                if let Some(ag) = &t.base.alt_group {
+                    self.validate_alt_group(ag, path, plan, errors);
+                }
                 if let Some(interval) = &t.interval {
                     self.validate_interval(interval, path, errors);
                 }
@@ -253,7 +263,7 @@ impl PlanValidator {
             Regex::new(r"^([0-9]{1,2}|\*)-([0-9]{1,2}|\*)-([0-9]{1,2}|\*)(?:-([0-9]{1,2}|\*))?$")
                 .expect("Invalid tempo regex")
         });
-        
+
         if !regex.is_match(tempo) {
             return false;
         }
@@ -372,7 +382,7 @@ impl PlanValidator {
     ) {
         // Validate the exercise exists
         self.validate_exercise(&scheme.base.ex, path, plan, errors);
-        
+
         // Try to expand the scheme template to validate it
         if let Some(ref template) = scheme.template {
             match template.expand(&scheme.base.ex) {
@@ -386,7 +396,7 @@ impl PlanValidator {
                             Some("Scheme expansion resulted in no sets"),
                         ));
                     }
-                    
+
                     if expanded.total_volume_reps == 0 {
                         errors.push(ValidationErrorInfo::new(
                             ValidationError::E161SchemeZeroVolume,
@@ -395,13 +405,19 @@ impl PlanValidator {
                             Some("Scheme expansion resulted in zero total reps"),
                         ));
                     }
-                    
+
                     // Validate each expanded set
                     for (idx, set) in expanded.sets.iter().enumerate() {
                         let set_path = format!("{}/expanded/{}", path, idx);
-                        self.validate_segment(&weightlifting_core::Segment::Straight(set.clone()), &set_path, plan, errors, &mut Vec::new());
+                        self.validate_segment(
+                            &weightlifting_core::Segment::Straight(set.clone()),
+                            &set_path,
+                            plan,
+                            errors,
+                            &mut Vec::new(),
+                        );
                     }
-                },
+                }
                 Err(expansion_error) => {
                     errors.push(ValidationErrorInfo::new(
                         ValidationError::E162SchemeExpansionFailed(expansion_error),
@@ -477,8 +493,10 @@ impl PlanValidator {
         for (idx, item) in complex.sequence.iter().enumerate() {
             let item_path = format!("{}/sequence/{}", path, idx);
             self.validate_exercise(&item.ex, &item_path, plan, errors);
-            if let Some(ag) = &item.alt_group { self.validate_alt_group(ag, &item_path, plan, errors); }
-            
+            if let Some(ag) = &item.alt_group {
+                self.validate_alt_group(ag, &item_path, plan, errors);
+            }
+
             // Validate reps range
             let weightlifting_core::RepsOrRange::Range(range) = &item.reps;
             if range.min == 0 || range.max == 0 {
@@ -525,7 +543,7 @@ impl PlanValidator {
                 Some("Interval repeats must be greater than 0"),
             ));
         }
-        
+
         // Additional validations for reasonable time limits
         if interval.work_sec > 3600 {
             errors.push(ValidationErrorInfo::new(
@@ -535,7 +553,7 @@ impl PlanValidator {
                 Some("Work period should not exceed 1 hour (3600 seconds)"),
             ));
         }
-        
+
         if interval.rest_sec > 3600 {
             errors.push(ValidationErrorInfo::new(
                 ValidationError::E130SecondsOutOfRange(interval.rest_sec),
@@ -544,7 +562,7 @@ impl PlanValidator {
                 Some("Rest period should not exceed 1 hour (3600 seconds)"),
             ));
         }
-        
+
         if interval.repeats > 1000 {
             errors.push(ValidationErrorInfo::new(
                 ValidationError::E151IntervalZeroRepeats,
@@ -554,5 +572,4 @@ impl PlanValidator {
             ));
         }
     }
-
 }

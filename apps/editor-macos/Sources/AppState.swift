@@ -7,6 +7,7 @@ class AppState: ObservableObject {
     @Published var selectedDayIndex: Int?
     @Published var selectedSegmentIds: Set<String> = []
     @Published var focusedDayIndex: Int?
+    @Published var selectedSegmentIndices: Set<Int> = []
 
     // Dialog State
     @Published var showValidation = false

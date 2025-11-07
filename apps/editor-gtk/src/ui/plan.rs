@@ -2,18 +2,18 @@ use crate::canvas::update_canvas_content;
 use crate::state::AppState;
 use glib::clone;
 use gtk4::prelude::*;
-use gtk4::{Box, Orientation, Label, RecentManager};
+use gtk4::{Box, Label, Orientation, RecentManager};
 use std::sync::{Arc, Mutex};
-use weightlifting_core::{Plan, AppPaths};
+use weightlifting_core::{AppPaths, Plan};
 
 pub fn show_no_plan_error_dialog(action: &str) {
-    use gtk4::{Dialog, DialogFlags, ResponseType, Box as GtkBox, Label};
-    
+    use gtk4::{Box as GtkBox, Dialog, DialogFlags, Label, ResponseType};
+
     let dialog = Dialog::with_buttons(
         Some("No Plan Loaded"),
         crate::ui::util::parent_for_dialog().as_ref(),
         DialogFlags::MODAL,
-        &[("OK", ResponseType::Ok)]
+        &[("OK", ResponseType::Ok)],
     );
     crate::ui::util::standardize_dialog(&dialog);
     let content = GtkBox::builder()
@@ -24,39 +24,42 @@ pub fn show_no_plan_error_dialog(action: &str) {
         .margin_bottom(20)
         .spacing(12)
         .build();
-    
+
     let message = Label::builder()
-        .label(format!("You need to create a new plan or open an existing plan before you can {}.", action))
+        .label(format!(
+            "You need to create a new plan or open an existing plan before you can {}.",
+            action
+        ))
         .wrap(true)
         .justify(gtk4::Justification::Center)
         .build();
-    
+
     let suggestion = Label::builder()
         .label("Use File → New Plan or File → Open Plan to get started.")
         .css_classes(vec!["dim-label".to_string()])
         .wrap(true)
         .justify(gtk4::Justification::Center)
         .build();
-    
+
     content.append(&message);
     content.append(&suggestion);
     dialog.content_area().append(&content);
-    
+
     dialog.connect_response(|dialog, _| {
         dialog.close();
     });
-    
+
     dialog.present();
 }
 
 pub fn show_help_dialog() {
-    use gtk4::{Dialog, DialogFlags, ResponseType, Box as GtkBox};
-    
+    use gtk4::{Box as GtkBox, Dialog, DialogFlags, ResponseType};
+
     let dialog = Dialog::with_buttons(
         Some("Keyboard Shortcuts"),
         crate::ui::util::parent_for_dialog().as_ref(),
         DialogFlags::MODAL,
-        &[("OK", ResponseType::Ok)]
+        &[("OK", ResponseType::Ok)],
     );
     crate::ui::util::standardize_dialog(&dialog);
     let content = GtkBox::builder()
@@ -67,52 +70,57 @@ pub fn show_help_dialog() {
         .margin_bottom(20)
         .spacing(8)
         .build();
-    
+
     let help_text = Label::builder()
         .label("Keyboard Shortcuts:\n\nCtrl+N: New Plan\nCtrl+O: Open Plan\nCtrl+S: Save Draft\nCtrl+Shift+S: Save As\nCtrl+Enter: Promote Plan\nCtrl+Z: Undo\n\nUp/Down: Move focus\nCtrl+Up/Down: Move between days\nShift+Ctrl+Up/Down: Reorder selected segments\nDelete: Delete Selected Segments (with confirmation)\n\n+: Add Segment to focused day\nG: Group Selected Segments\nU: Ungroup Selected Segments\nEsc: Clear Selection\n\nF1: Help\n")
         .halign(gtk4::Align::Start)
         .build();
-    
+
     content.append(&help_text);
     dialog.content_area().append(&content);
-    
+
     dialog.connect_response(|dialog, _| {
         dialog.close();
     });
-    
+
     dialog.present();
 }
 
 pub fn open_plan_dialog(state: Arc<Mutex<AppState>>, paths: Arc<AppPaths>) {
-    use gtk4::{Dialog, DialogFlags, ResponseType, FileChooserAction, FileFilter};
-    
+    use gtk4::{Dialog, DialogFlags, FileChooserAction, FileFilter, ResponseType};
+
     let dialog = Dialog::with_buttons(
         Some("Open Plan"),
         crate::ui::util::parent_for_dialog().as_ref(),
         DialogFlags::MODAL,
-        &[("Cancel", ResponseType::Cancel), ("Open", ResponseType::Accept)]
+        &[
+            ("Cancel", ResponseType::Cancel),
+            ("Open", ResponseType::Accept),
+        ],
     );
     crate::ui::util::standardize_dialog(&dialog);
     let file_chooser = gtk4::FileChooserWidget::new(FileChooserAction::Open);
-    
+
     // Set filter for JSON files
     let filter = FileFilter::new();
     filter.add_pattern("*.json");
     filter.set_name(Some("Weightlifting Plans (*.json)"));
     file_chooser.add_filter(&filter);
-    
+
     // Set initial directory - prefer last opened directory, fall back to drafts
     let initial_dir = {
         let app_state = state.lock().unwrap();
-        app_state.last_opened_directory.clone()
+        app_state
+            .last_opened_directory
+            .clone()
             .or_else(|| paths.drafts_dir().canonicalize().ok())
     };
-    
+
     if let Some(dir) = initial_dir {
         let gfile = gtk4::gio::File::for_path(&dir);
         let _ = file_chooser.set_current_folder(Some(&gfile));
     }
-    
+
     let content = Box::builder()
         .orientation(Orientation::Vertical)
         .margin_start(20)
@@ -121,10 +129,10 @@ pub fn open_plan_dialog(state: Arc<Mutex<AppState>>, paths: Arc<AppPaths>) {
         .margin_bottom(20)
         .spacing(12)
         .build();
-    
+
     content.append(&file_chooser);
     dialog.content_area().append(&content);
-    
+
     dialog.connect_response(clone!(@strong state, @strong paths, @strong file_chooser => move |dialog, response| {
         if response == ResponseType::Accept {
             if let Some(file) = file_chooser.file() {
@@ -150,13 +158,13 @@ pub fn open_plan_dialog(state: Arc<Mutex<AppState>>, paths: Arc<AppPaths>) {
         }
         dialog.close();
     }));
-    
+
     dialog.present();
 }
 
 fn mark_recent_visit(uri: &str, _mime: &str) {
     let recent_manager = RecentManager::default();
-    
+
     // For now, use add_item which should still work better than the previous approach
     // TODO: Research the correct GTK4-rs API for add_full with RecentData
     let _ = recent_manager.add_item(uri);
@@ -169,35 +177,35 @@ pub fn load_plan_from_file(state: Arc<Mutex<AppState>>, path: std::path::PathBuf
                 Ok(plan) => {
                     let mut app_state = state.lock().unwrap();
                     let plan_id = path.file_stem().unwrap().to_string_lossy().to_string();
-                    
+
                     app_state.current_plan = Some(plan.clone());
                     app_state.plan_id = Some(plan_id);
                     app_state.current_file_path = Some(path.clone()); // Set the loaded file path
                     app_state.mark_saved(); // Just loaded, so not modified
-                    
+
                     // Record visit to recent manager
                     let file_uri = format!("file://{}", path.display());
                     mark_recent_visit(&file_uri, "application/json");
-                    
+
                     println!("Loaded plan: {}", plan.name);
                     // Update UI on main thread to prevent crashes
                     let state_clone = state.clone();
                     glib::idle_add_local_once(move || {
                         update_canvas_content(state_clone);
                     });
-                },
+                }
                 Err(e) => println!("Failed to parse plan JSON: {}", e),
             }
-        },
+        }
         Err(e) => println!("Failed to read plan file: {}", e),
     }
 }
 
 fn _add_exercise_to_current_plan(state: Arc<Mutex<AppState>>) {
-    use weightlifting_core::{Day, Segment, StraightSegment, BaseSegment, RepsOrRange, RepsRange};
-    
+    use weightlifting_core::{BaseSegment, Day, RepsOrRange, RepsRange, Segment, StraightSegment};
+
     let mut app_state = state.lock().unwrap();
-    
+
     if let Some(plan) = &mut app_state.current_plan {
         // Ensure we have at least one day
         if plan.schedule.is_empty() {
@@ -211,7 +219,7 @@ fn _add_exercise_to_current_plan(state: Arc<Mutex<AppState>>) {
             };
             plan.schedule.push(day);
         }
-        
+
         // Add exercise to first day
         let straight_segment = StraightSegment {
             base: BaseSegment {
@@ -224,7 +232,11 @@ fn _add_exercise_to_current_plan(state: Arc<Mutex<AppState>>) {
             },
             sets: Some(3),
             sets_range: None,
-            reps: Some(RepsOrRange::Range(RepsRange { min: 8, max: 10, target: None })),
+            reps: Some(RepsOrRange::Range(RepsRange {
+                min: 8,
+                max: 10,
+                target: None,
+            })),
             time_sec: None,
             rest_sec: None,
             rir: None,
@@ -236,10 +248,10 @@ fn _add_exercise_to_current_plan(state: Arc<Mutex<AppState>>) {
             auto_stop: None,
             interval: None,
         };
-        
+
         let segment = Segment::Straight(straight_segment);
         plan.schedule[0].segments.push(segment);
-        
+
         app_state.mark_modified();
         println!("Added exercise: Bench Press (3x8-10 @ RPE 8)");
     } else {
@@ -248,10 +260,10 @@ fn _add_exercise_to_current_plan(state: Arc<Mutex<AppState>>) {
 }
 
 fn _add_comment_to_current_plan(state: Arc<Mutex<AppState>>) {
-    use weightlifting_core::{Day, Segment, CommentSegment};
-    
+    use weightlifting_core::{CommentSegment, Day, Segment};
+
     let mut app_state = state.lock().unwrap();
-    
+
     if let Some(plan) = &mut app_state.current_plan {
         // Ensure we have at least one day
         if plan.schedule.is_empty() {
@@ -265,15 +277,15 @@ fn _add_comment_to_current_plan(state: Arc<Mutex<AppState>>) {
             };
             plan.schedule.push(day);
         }
-        
+
         let comment_segment = CommentSegment {
             text: "Rest between exercises - Death to Windows!".to_string(),
             icon: Some("note".to_string()),
         };
-        
+
         let segment = Segment::Comment(comment_segment);
         plan.schedule[0].segments.push(segment);
-        
+
         app_state.mark_modified();
         println!("Added comment segment");
     } else {

@@ -1,11 +1,14 @@
 // Group dialogs (Choose/Rotate/Optional/Superset) and helpers
 
-use crate::state::AppState;
 use crate::operations::plan_ops::add_group_choose_to_plan;
+use crate::state::AppState;
 use crate::ui::widgets::ExerciseSearchWidget;
 use glib::clone;
 use gtk4::prelude::*;
-use gtk4::{Orientation, Label, StringList, ScrolledWindow, Box as GtkBox, Button, Dialog, DialogFlags, ResponseType, Expander, ListBox, ListBoxRow, DropDown, SelectionMode};
+use gtk4::{
+    Box as GtkBox, Button, Dialog, DialogFlags, DropDown, Expander, Label, ListBox, ListBoxRow,
+    Orientation, ResponseType, ScrolledWindow, SelectionMode, StringList,
+};
 use std::sync::{Arc, Mutex};
 
 pub fn show_add_group_choose_dialog(state: Arc<Mutex<AppState>>) {
@@ -13,7 +16,10 @@ pub fn show_add_group_choose_dialog(state: Arc<Mutex<AppState>>) {
         Some("Add Group (Choose)"),
         crate::ui::util::parent_for_dialog().as_ref(),
         DialogFlags::MODAL,
-        &[("Cancel", ResponseType::Cancel), ("Add", ResponseType::Accept)]
+        &[
+            ("Cancel", ResponseType::Cancel),
+            ("Add", ResponseType::Accept),
+        ],
     );
 
     let content = GtkBox::builder()
@@ -43,7 +49,11 @@ pub fn show_add_group_choose_dialog(state: Arc<Mutex<AppState>>) {
     // Exercise list
     let exercises_label = Label::new(Some("Exercises to choose from:"));
     content.append(&exercises_label);
-    let exercises_scrolled = ScrolledWindow::builder().hexpand(true).vexpand(true).min_content_height(300).build();
+    let exercises_scrolled = ScrolledWindow::builder()
+        .hexpand(true)
+        .vexpand(true)
+        .min_content_height(300)
+        .build();
     let exercises_list = ListBox::new();
     exercises_list.set_selection_mode(SelectionMode::None);
     exercises_scrolled.set_child(Some(&exercises_list));
@@ -51,7 +61,9 @@ pub fn show_add_group_choose_dialog(state: Arc<Mutex<AppState>>) {
 
     // Exercise search
     let search_widget = ExerciseSearchWidget::new();
-    if let Err(e) = search_widget.set_database_path("/home/jawaad/weightlifting-desktop/exercises.db") {
+    if let Err(e) =
+        search_widget.set_database_path("/home/jawaad/weightlifting-desktop/exercises.db")
+    {
         println!("Failed to connect to exercise database: {}", e);
     }
     let search_expander = Expander::builder()
@@ -108,7 +120,9 @@ fn add_exercise_to_group_list(exercises_list: &ListBox, code: &str, name: &str) 
                 if let Some(box_) = box_.downcast_ref::<GtkBox>() {
                     if let Some(first_child) = box_.first_child() {
                         if let Some(label) = first_child.downcast_ref::<Label>() {
-                            if label.text() == code { return; }
+                            if label.text() == code {
+                                return;
+                            }
                         }
                     }
                 }
@@ -118,7 +132,14 @@ fn add_exercise_to_group_list(exercises_list: &ListBox, code: &str, name: &str) 
     }
 
     let row = ListBoxRow::new();
-    let box_ = GtkBox::builder().orientation(Orientation::Horizontal).margin_start(10).margin_end(10).margin_top(5).margin_bottom(5).spacing(10).build();
+    let box_ = GtkBox::builder()
+        .orientation(Orientation::Horizontal)
+        .margin_start(10)
+        .margin_end(10)
+        .margin_top(5)
+        .margin_bottom(5)
+        .spacing(10)
+        .build();
     let code_label = Label::new(Some(code));
     code_label.set_css_classes(&["monospace"]);
     code_label.set_width_chars(15);
@@ -144,9 +165,17 @@ fn collect_exercises_from_list(exercises_list: &ListBox) -> Vec<(String, String)
         if let Some(list_row) = row.downcast_ref::<ListBoxRow>() {
             if let Some(box_) = list_row.child() {
                 if let Some(box_) = box_.downcast_ref::<GtkBox>() {
-                    if let Some(code_label) = box_.first_child().and_then(|c| c.downcast::<Label>().ok()) {
-                        if let Some(name_label) = code_label.next_sibling().and_then(|c| c.downcast::<Label>().ok()) {
-                            exercises.push((code_label.text().to_string(), name_label.text().to_string()));
+                    if let Some(code_label) =
+                        box_.first_child().and_then(|c| c.downcast::<Label>().ok())
+                    {
+                        if let Some(name_label) = code_label
+                            .next_sibling()
+                            .and_then(|c| c.downcast::<Label>().ok())
+                        {
+                            exercises.push((
+                                code_label.text().to_string(),
+                                name_label.text().to_string(),
+                            ));
                         }
                     }
                 }

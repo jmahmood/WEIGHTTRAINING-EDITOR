@@ -1,0 +1,103 @@
+{
+  "": {
+    "swift-dependencies": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/master.swiftdeps"
+  },
+  "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/Sources/AppState.swift": {
+    "dependencies": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/AppState.d",
+    "object": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/AppState.swift.o",
+    "swiftmodule": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/AppState~partial.swiftmodule",
+    "swift-dependencies": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/AppState.swiftdeps",
+    "diagnostics": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/AppState.dia"
+  },
+  "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/Sources/Dialogs/GroupsEditorView.swift": {
+    "dependencies": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/GroupsEditorView.d",
+    "object": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/GroupsEditorView.swift.o",
+    "swiftmodule": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/GroupsEditorView~partial.swiftmodule",
+    "swift-dependencies": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/GroupsEditorView.swiftdeps",
+    "diagnostics": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/GroupsEditorView.dia"
+  },
+  "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/Sources/Dialogs/SegmentEditorView.swift": {
+    "dependencies": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/SegmentEditorView.d",
+    "object": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/SegmentEditorView.swift.o",
+    "swiftmodule": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/SegmentEditorView~partial.swiftmodule",
+    "swift-dependencies": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/SegmentEditorView.swiftdeps",
+    "diagnostics": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/SegmentEditorView.dia"
+  },
+  "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/Sources/Dialogs/SingleGroupEditorView.swift": {
+    "dependencies": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/SingleGroupEditorView.d",
+    "object": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/SingleGroupEditorView.swift.o",
+    "swiftmodule": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/SingleGroupEditorView~partial.swiftmodule",
+    "swift-dependencies": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/SingleGroupEditorView.swiftdeps",
+    "diagnostics": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/SingleGroupEditorView.dia"
+  },
+  "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/Sources/Dialogs/SupersetItemEditorView.swift": {
+    "dependencies": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/SupersetItemEditorView.d",
+    "object": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/SupersetItemEditorView.swift.o",
+    "swiftmodule": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/SupersetItemEditorView~partial.swiftmodule",
+    "swift-dependencies": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/SupersetItemEditorView.swiftdeps",
+    "diagnostics": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/SupersetItemEditorView.dia"
+  },
+  "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/Sources/Dialogs/ValidationView.swift": {
+    "dependencies": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/ValidationView.d",
+    "object": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/ValidationView.swift.o",
+    "swiftmodule": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/ValidationView~partial.swiftmodule",
+    "swift-dependencies": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/ValidationView.swiftdeps",
+    "diagnostics": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/ValidationView.dia"
+  },
+  "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/Sources/Models/PlanDocument.swift": {
+    "dependencies": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/PlanDocument.d",
+    "object": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/PlanDocument.swift.o",
+    "swiftmodule": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/PlanDocument~partial.swiftmodule",
+    "swift-dependencies": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/PlanDocument.swiftdeps",
+    "diagnostics": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/PlanDocument.dia"
+  },
+  "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/Sources/Models/WeightliftingDocument.swift": {
+    "dependencies": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/WeightliftingDocument.d",
+    "object": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/WeightliftingDocument.swift.o",
+    "swiftmodule": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/WeightliftingDocument~partial.swiftmodule",
+    "swift-dependencies": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/WeightliftingDocument.swiftdeps",
+    "diagnostics": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/WeightliftingDocument.dia"
+  },
+  "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/Sources/RustBridge/RustBridge.swift": {
+    "dependencies": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/RustBridge.d",
+    "object": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/RustBridge.swift.o",
+    "swiftmodule": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/RustBridge~partial.swiftmodule",
+    "swift-dependencies": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/RustBridge.swiftdeps",
+    "diagnostics": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/RustBridge.dia"
+  },
+  "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/Sources/Views/CanvasView.swift": {
+    "dependencies": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/CanvasView.d",
+    "object": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/CanvasView.swift.o",
+    "swiftmodule": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/CanvasView~partial.swiftmodule",
+    "swift-dependencies": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/CanvasView.swiftdeps",
+    "diagnostics": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/CanvasView.dia"
+  },
+  "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/Sources/Views/ExercisePicker.swift": {
+    "dependencies": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/ExercisePicker.d",
+    "object": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/ExercisePicker.swift.o",
+    "swiftmodule": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/ExercisePicker~partial.swiftmodule",
+    "swift-dependencies": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/ExercisePicker.swiftdeps",
+    "diagnostics": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/ExercisePicker.dia"
+  },
+  "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/Sources/Views/MainWindowView.swift": {
+    "dependencies": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/MainWindowView.d",
+    "object": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/MainWindowView.swift.o",
+    "swiftmodule": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/MainWindowView~partial.swiftmodule",
+    "swift-dependencies": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/MainWindowView.swiftdeps",
+    "diagnostics": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/MainWindowView.dia"
+  },
+  "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/Sources/Views/RightPanelView.swift": {
+    "dependencies": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/RightPanelView.d",
+    "object": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/RightPanelView.swift.o",
+    "swiftmodule": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/RightPanelView~partial.swiftmodule",
+    "swift-dependencies": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/RightPanelView.swiftdeps",
+    "diagnostics": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/RightPanelView.dia"
+  },
+  "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/Sources/WeightliftingEditorApp.swift": {
+    "dependencies": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/WeightliftingEditorApp.d",
+    "object": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/WeightliftingEditorApp.swift.o",
+    "swiftmodule": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/WeightliftingEditorApp~partial.swiftmodule",
+    "swift-dependencies": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/WeightliftingEditorApp.swiftdeps",
+    "diagnostics": "/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/.build/arm64-apple-macosx/debug/WeightliftingEditor.build/WeightliftingEditorApp.dia"
+  }
+}

@@ -1,0 +1,14 @@
+/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/Sources/AppState.swift
+/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/Sources/Dialogs/GroupsEditorView.swift
+/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/Sources/Dialogs/SegmentEditorView.swift
+/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/Sources/Dialogs/SingleGroupEditorView.swift
+/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/Sources/Dialogs/SupersetItemEditorView.swift
+/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/Sources/Dialogs/ValidationView.swift
+/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/Sources/Models/PlanDocument.swift
+/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/Sources/Models/WeightliftingDocument.swift
+/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/Sources/RustBridge/RustBridge.swift
+/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/Sources/Views/CanvasView.swift
+/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/Sources/Views/ExercisePicker.swift
+/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/Sources/Views/MainWindowView.swift
+/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/Sources/Views/RightPanelView.swift
+/Users/jmahmood/WEIGHTTRAINING-EDITOR/apps/editor-macos/Sources/WeightliftingEditorApp.swift

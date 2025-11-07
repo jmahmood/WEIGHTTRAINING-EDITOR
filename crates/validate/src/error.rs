@@ -107,7 +107,10 @@ impl ValidationError {
     }
 
     pub fn is_warning(&self) -> bool {
-        matches!(self, Self::W210OptionalNoItems | Self::W211SupersetIncompatible)
+        matches!(
+            self,
+            Self::W210OptionalNoItems | Self::W211SupersetIncompatible
+        )
     }
 }
 

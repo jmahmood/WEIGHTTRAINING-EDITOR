@@ -1,10 +1,10 @@
-use gtk4::{Application, ApplicationWindow, Dialog, prelude::*};
-use gtk4::{EventControllerKey, PropagationPhase, gdk::Key, gdk::ModifierType, Button};
 use glib::clone;
-use gtk4::ResponseType;
-use gtk4::prelude::IsA;
-use gtk4::{Popover, Box as GtkBox, Orientation, Label, Image};
 use gtk4::gdk;
+use gtk4::prelude::IsA;
+use gtk4::ResponseType;
+use gtk4::{gdk::Key, gdk::ModifierType, Button, EventControllerKey, PropagationPhase};
+use gtk4::{prelude::*, Application, ApplicationWindow, Dialog};
+use gtk4::{Box as GtkBox, Image, Label, Orientation, Popover};
 
 /// Returns the currently active `ApplicationWindow`, if any.
 pub fn parent_for_dialog() -> Option<ApplicationWindow> {
@@ -60,13 +60,13 @@ pub fn bind_ctrl_enter_to_accept<D: IsA<Dialog>>(dialog: &D) -> bool {
 /// Show a non-blocking warning dialog informing about unsaved changes.
 #[allow(dead_code)]
 pub fn show_discard_changes_warning() {
-    use gtk4::{MessageDialog, ButtonsType, MessageType, DialogFlags};
+    use gtk4::{ButtonsType, DialogFlags, MessageDialog, MessageType};
     let dlg = MessageDialog::new(
         parent_for_dialog().as_ref(),
         DialogFlags::MODAL,
         MessageType::Warning,
         ButtonsType::Ok,
-        "You have unsaved changes. Press Ctrl+Enter to save, or Close to discard."
+        "You have unsaved changes. Press Ctrl+Enter to save, or Close to discard.",
     );
     standardize_dialog(&dlg);
     dlg.connect_response(|d, _| d.close());
@@ -76,13 +76,13 @@ pub fn show_discard_changes_warning() {
 /// Ask user whether to discard unsaved changes; returns true if discard confirmed.
 #[allow(dead_code)]
 pub fn confirm_discard_changes() -> bool {
-    use gtk4::{MessageDialog, ButtonsType, MessageType, DialogFlags, ResponseType};
+    use gtk4::{ButtonsType, DialogFlags, MessageDialog, MessageType, ResponseType};
     let dlg = MessageDialog::new(
         parent_for_dialog().as_ref(),
         DialogFlags::MODAL,
         MessageType::Question,
         ButtonsType::YesNo,
-        "Discard unsaved changes?"
+        "Discard unsaved changes?",
     );
     standardize_dialog(&dlg);
     // Use a nested main loop to block until user responds
@@ -106,7 +106,12 @@ pub fn confirm_discard_changes() -> bool {
 /// Show a simple right-click context menu with a single "Edit" option.
 /// - Anchors to `relative_to` and appears near the click position (x,y).
 /// - Invokes `on_edit` when the user activates the menu item.
-pub fn show_edit_context_menu<W: IsA<gtk4::Widget> + Clone + 'static>(relative_to: &W, x: f64, y: f64, on_edit: Box<dyn Fn() + 'static>) {
+pub fn show_edit_context_menu<W: IsA<gtk4::Widget> + Clone + 'static>(
+    relative_to: &W,
+    x: f64,
+    y: f64,
+    on_edit: Box<dyn Fn() + 'static>,
+) {
     // Build a minimal popover menu
     let popover = Popover::new();
     popover.set_autohide(true);

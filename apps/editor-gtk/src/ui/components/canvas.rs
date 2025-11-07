@@ -1,11 +1,11 @@
-use crate::state::AppState;
-use crate::ui::plan::show_no_plan_error_dialog;
 use crate::dialogs::comment::show_add_comment_dialog;
 use crate::dialogs::day::show_add_day_dialog;
-use gtk4::{Box, Orientation, Label, Button, ScrolledWindow};
-use libadwaita::StatusPage;
+use crate::state::AppState;
+use crate::ui::plan::show_no_plan_error_dialog;
 use glib::clone;
 use gtk4::prelude::*;
+use gtk4::{Box, Button, Label, Orientation, ScrolledWindow};
+use libadwaita::StatusPage;
 use std::sync::{Arc, Mutex};
 use weightlifting_core::AppPaths;
 
@@ -64,7 +64,7 @@ fn create_segment_controls(state: Arc<Mutex<AppState>>) -> Box {
     //         show_no_plan_error_dialog("add segments");
     //     }
     // }));
-    
+
     add_day_btn.connect_clicked(clone!(@strong state => move |_| {
         // Check if a plan is loaded before showing the dialog
         let app_state = state.lock().unwrap();
@@ -76,7 +76,7 @@ fn create_segment_controls(state: Arc<Mutex<AppState>>) -> Box {
             show_no_plan_error_dialog("add days");
         }
     }));
-    
+
     add_comment_btn.connect_clicked(clone!(@strong state => move |_| {
         // Check if a plan is loaded before showing the dialog
         let app_state = state.lock().unwrap();

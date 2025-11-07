@@ -1,28 +1,36 @@
 // Superset edit dialog functionality
 
+use super::dialog_components::{
+    create_exercise_buttons, create_exercise_list_view, move_exercise_down, move_exercise_up,
+    rebuild_exercise_model, remove_last_exercise,
+};
+use crate::operations::plan_ops::update_superset_in_plan;
 use crate::state::AppState;
 use crate::ui::exercise_menus::exercise_data::SupersetExerciseData;
-use crate::operations::plan_ops::update_superset_in_plan;
-use super::dialog_components::{
-    create_exercise_list_view, create_exercise_buttons,
-    remove_last_exercise, move_exercise_up, move_exercise_down, rebuild_exercise_model
-};
+use crate::ui::widgets::{ExerciseSearchWidget, GroupSearchWidget};
 use glib::clone;
 use gtk4::prelude::*;
 use gtk4::{
-    Orientation, Label, StringList, Box as GtkBox, Entry, 
-    SpinButton, Dialog, DialogFlags, ResponseType, ListItem
+    Box as GtkBox, Dialog, DialogFlags, Entry, Label, ListItem, Orientation, ResponseType,
+    SpinButton, StringList,
 };
 use std::sync::{Arc, Mutex};
 use weightlifting_core::RepsOrRange;
-use crate::ui::widgets::{ExerciseSearchWidget, GroupSearchWidget};
 
-pub fn show_edit_superset_dialog(state: Arc<Mutex<AppState>>, superset: weightlifting_core::SupersetSegment, day_index: usize, segment_index: usize) {
+pub fn show_edit_superset_dialog(
+    state: Arc<Mutex<AppState>>,
+    superset: weightlifting_core::SupersetSegment,
+    day_index: usize,
+    segment_index: usize,
+) {
     let dialog = Dialog::with_buttons(
         Some("Edit Superset"),
         crate::ui::util::parent_for_dialog().as_ref(),
         DialogFlags::MODAL,
-        &[("Cancel", ResponseType::Cancel), ("Update", ResponseType::Accept)]
+        &[
+            ("Cancel", ResponseType::Cancel),
+            ("Update", ResponseType::Accept),
+        ],
     );
     crate::ui::util::standardize_dialog(&dialog);
     dialog.set_default_size(500, 400);
@@ -41,60 +49,63 @@ pub fn show_edit_superset_dialog(state: Arc<Mutex<AppState>>, superset: weightli
     let label_entry = Entry::builder()
         .text(superset.label.unwrap_or("Upper Body Superset".to_string()))
         .build();
-    
+
     content.append(&label_label);
     content.append(&label_entry);
-    
+
     // Superset parameters - populate with existing values
     let params_box = GtkBox::builder()
         .orientation(Orientation::Horizontal)
         .spacing(12)
         .build();
-    
+
     let rounds_label = Label::new(Some("Rounds:"));
     let rounds_entry = SpinButton::with_range(1.0, 10.0, 1.0);
     rounds_entry.set_value(superset.rounds as f64);
-    
+
     let rest_label = Label::new(Some("Rest between exercises (sec):"));
     let rest_entry = SpinButton::with_range(0.0, 180.0, 15.0);
     rest_entry.set_value(superset.rest_sec as f64);
-    
+
     let rest_rounds_label = Label::new(Some("Rest between rounds (sec):"));
     let rest_rounds_entry = SpinButton::with_range(60.0, 600.0, 30.0);
     rest_rounds_entry.set_value(superset.rest_between_rounds_sec as f64);
-    
+
     params_box.append(&rounds_label);
     params_box.append(&rounds_entry);
     params_box.append(&rest_label);
     params_box.append(&rest_entry);
-    
+
     content.append(&params_box);
-    
+
     let rounds_box = GtkBox::builder()
         .orientation(Orientation::Horizontal)
         .spacing(12)
         .build();
-    
+
     rounds_box.append(&rest_rounds_label);
     rounds_box.append(&rest_rounds_entry);
-    
+
     content.append(&rounds_box);
-    
+
     // Exercise list - populate with existing exercises
     let exercises_label = Label::new(Some("Exercises in Superset:"));
     content.append(&exercises_label);
-    
+
     let exercises_model = StringList::new(&[]);
-    let (_exercises_view, scrolled_exercises, factory) = create_exercise_list_view(exercises_model.clone());
+    let (_exercises_view, scrolled_exercises, factory) =
+        create_exercise_list_view(exercises_model.clone());
     content.append(&scrolled_exercises);
-    
+
     // Exercise management buttons
-    let (exercise_buttons_box, add_exercise_btn, remove_exercise_btn, move_up_btn, move_down_btn) = create_exercise_buttons();
+    let (exercise_buttons_box, add_exercise_btn, remove_exercise_btn, move_up_btn, move_down_btn) =
+        create_exercise_buttons();
     content.append(&exercise_buttons_box);
-    
+
     // Convert existing exercises to our data structure and populate model
-    let exercises_data = std::rc::Rc::new(std::cell::RefCell::new(Vec::<SupersetExerciseData>::new()));
-    
+    let exercises_data =
+        std::rc::Rc::new(std::cell::RefCell::new(Vec::<SupersetExerciseData>::new()));
+
     // Load existing exercises
     for item in &superset.items {
         let (reps_min, reps_max) = if let Some(reps) = &item.reps {
@@ -104,7 +115,7 @@ pub fn show_edit_superset_dialog(state: Arc<Mutex<AppState>>, superset: weightli
         } else {
             (1, 1)
         };
-        
+
         let exercise_data = SupersetExerciseData {
             ex_code: item.ex.clone(),
             ex_name: item.ex.clone(), // We'll use the code as name for editing
@@ -114,9 +125,9 @@ pub fn show_edit_superset_dialog(state: Arc<Mutex<AppState>>, superset: weightli
             reps_max,
             rpe: item.rpe,
         };
-        
+
         let display_text = format_superset_exercise_display(&exercise_data);
-        
+
         exercises_data.borrow_mut().push(exercise_data);
         exercises_model.append(&display_text);
     }
@@ -154,21 +165,27 @@ pub fn show_edit_superset_dialog(state: Arc<Mutex<AppState>>, superset: weightli
     add_exercise_btn.connect_clicked(clone!(@strong state, @strong exercises_model, @strong exercises_data => move |_| {
         show_add_superset_exercise_dialog(state.clone(), exercises_model.clone(), exercises_data.clone());
     }));
-    
-    remove_exercise_btn.connect_clicked(clone!(@strong exercises_model, @strong exercises_data => move |_| {
-        remove_last_exercise(&exercises_model, &exercises_data);
-    }));
 
-    move_up_btn.connect_clicked(clone!(@strong exercises_model, @strong exercises_data => move |_| {
-        move_exercise_up(&exercises_model, &exercises_data, format_superset_exercise_display);
-    }));
+    remove_exercise_btn.connect_clicked(
+        clone!(@strong exercises_model, @strong exercises_data => move |_| {
+            remove_last_exercise(&exercises_model, &exercises_data);
+        }),
+    );
 
-    move_down_btn.connect_clicked(clone!(@strong exercises_model, @strong exercises_data => move |_| {
-        move_exercise_down(&exercises_model, &exercises_data, format_superset_exercise_display);
-    }));
-    
+    move_up_btn.connect_clicked(
+        clone!(@strong exercises_model, @strong exercises_data => move |_| {
+            move_exercise_up(&exercises_model, &exercises_data, format_superset_exercise_display);
+        }),
+    );
+
+    move_down_btn.connect_clicked(
+        clone!(@strong exercises_model, @strong exercises_data => move |_| {
+            move_exercise_down(&exercises_model, &exercises_data, format_superset_exercise_display);
+        }),
+    );
+
     dialog.content_area().append(&content);
-    
+
     dialog.connect_response(clone!(@strong state, @strong label_entry, @strong rounds_entry, @strong rest_entry, @strong rest_rounds_entry, @strong exercises_data => move |dialog, response| {
         if response == ResponseType::Accept {
             let label = label_entry.text().to_string();
@@ -176,16 +193,16 @@ pub fn show_edit_superset_dialog(state: Arc<Mutex<AppState>>, superset: weightli
             let rounds = rounds_entry.value() as u32;
             let rest_sec = rest_entry.value() as u32;
             let rest_between_rounds_sec = rest_rounds_entry.value() as u32;
-            
+
             let exercises = exercises_data.borrow().clone();
-            
+
             if !exercises.is_empty() {
                 update_superset_in_plan(state.clone(), day_index, segment_index, label, rounds, rest_sec, rest_between_rounds_sec, exercises);
             }
         }
         dialog.close();
     }));
-    
+
     dialog.present();
 }
 
@@ -199,7 +216,10 @@ fn show_edit_superset_exercise_dialog(
         Some("Edit Superset Exercise"),
         crate::ui::util::parent_for_dialog().as_ref(),
         DialogFlags::MODAL,
-        &[("Cancel", ResponseType::Cancel), ("Save", ResponseType::Accept)]
+        &[
+            ("Cancel", ResponseType::Cancel),
+            ("Save", ResponseType::Accept),
+        ],
     );
 
     let content = GtkBox::builder()
@@ -213,7 +233,9 @@ fn show_edit_superset_exercise_dialog(
 
     // Exercise Search Widget (optional, to help pick names)
     let search_widget = ExerciseSearchWidget::new();
-    if let Err(e) = search_widget.set_database_path("/home/jawaad/weightlifting-desktop/exercises.db") {
+    if let Err(e) =
+        search_widget.set_database_path("/home/jawaad/weightlifting-desktop/exercises.db")
+    {
         println!("Failed to connect to exercise database: {}", e);
     }
     let search_expander = gtk4::Expander::builder()
@@ -264,7 +286,9 @@ fn show_edit_superset_exercise_dialog(
 
     let alt_group_label = Label::new(Some("Alternative Group (optional):"));
     let alt_group_entry = Entry::new();
-    if let Some(ag) = current.alt_group.clone() { alt_group_entry.set_text(&ag); }
+    if let Some(ag) = current.alt_group.clone() {
+        alt_group_entry.set_text(&ag);
+    }
     content.append(&alt_group_label);
     content.append(&alt_group_entry);
 
@@ -308,14 +332,21 @@ fn show_edit_superset_exercise_dialog(
     dialog.present();
 }
 
-fn show_add_superset_exercise_dialog(state: Arc<Mutex<AppState>>, exercises_model: StringList, exercises_data: std::rc::Rc<std::cell::RefCell<Vec<SupersetExerciseData>>>) {
+fn show_add_superset_exercise_dialog(
+    state: Arc<Mutex<AppState>>,
+    exercises_model: StringList,
+    exercises_data: std::rc::Rc<std::cell::RefCell<Vec<SupersetExerciseData>>>,
+) {
     let dialog = Dialog::with_buttons(
         Some("Add Exercise to Superset"),
         crate::ui::util::parent_for_dialog().as_ref(),
         DialogFlags::MODAL,
-        &[("Cancel", ResponseType::Cancel), ("Add", ResponseType::Accept)]
+        &[
+            ("Cancel", ResponseType::Cancel),
+            ("Add", ResponseType::Accept),
+        ],
     );
-    
+
     let content = GtkBox::builder()
         .orientation(Orientation::Vertical)
         .margin_start(20)
@@ -324,10 +355,12 @@ fn show_add_superset_exercise_dialog(state: Arc<Mutex<AppState>>, exercises_mode
         .margin_bottom(20)
         .spacing(12)
         .build();
-    
+
     // Exercise Search Widget (search-first)
     let search_widget = ExerciseSearchWidget::new();
-    if let Err(e) = search_widget.set_database_path("/home/jawaad/weightlifting-desktop/exercises.db") {
+    if let Err(e) =
+        search_widget.set_database_path("/home/jawaad/weightlifting-desktop/exercises.db")
+    {
         println!("Failed to connect to exercise database: {}", e);
     }
     let search_expander = gtk4::Expander::builder()
@@ -373,30 +406,30 @@ fn show_add_superset_exercise_dialog(state: Arc<Mutex<AppState>>, exercises_mode
     manual_box.append(&name_entry);
     manual_expander.set_child(Some(&manual_box));
     content.append(&manual_expander);
-    
+
     let sets_label = Label::new(Some("Sets:"));
     let sets_entry = SpinButton::with_range(1.0, 20.0, 1.0);
     sets_entry.set_value(3.0);
-    
+
     let reps_label = Label::new(Some("Reps (min-max):"));
     let reps_box = GtkBox::builder()
         .orientation(Orientation::Horizontal)
         .spacing(8)
         .build();
-    
+
     let min_reps = SpinButton::with_range(1.0, 50.0, 1.0);
     min_reps.set_value(8.0);
     let max_reps = SpinButton::with_range(1.0, 50.0, 1.0);
     max_reps.set_value(10.0);
-    
+
     reps_box.append(&min_reps);
     reps_box.append(&Label::new(Some("-")));
     reps_box.append(&max_reps);
-    
+
     let rpe_label = Label::new(Some("RPE (optional):"));
     let rpe_entry = SpinButton::with_range(6.0, 10.0, 0.5);
     rpe_entry.set_value(8.0);
-    
+
     content.append(&sets_label);
     content.append(&sets_entry);
     content.append(&reps_label);
@@ -432,36 +465,39 @@ fn show_add_superset_exercise_dialog(state: Arc<Mutex<AppState>>, exercises_mode
     });
 
     dialog.content_area().append(&content);
-    
+
     // Keyboard: Enter to accept, focus search on show
     let dialog_clone = dialog.clone();
     let search_widget_for_keys = search_widget.clone();
     let ex_entry_for_keys = ex_entry.clone();
     let name_entry_for_keys = name_entry.clone();
     let key_controller = gtk4::EventControllerKey::new();
-    key_controller.connect_key_pressed(move |_, key, _, modifiers| {
-        match key {
-            gtk4::gdk::Key::Return | gtk4::gdk::Key::KP_Enter => {
-                if modifiers.contains(gtk4::gdk::ModifierType::CONTROL_MASK) {
-                    dialog_clone.response(ResponseType::Accept);
-                    return glib::Propagation::Stop;
-                }
-                if let Some(sel) = search_widget_for_keys.selected_exercise() {
-                    ex_entry_for_keys.set_text(&sel.code);
-                    name_entry_for_keys.set_text(&sel.name);
-                    dialog_clone.response(ResponseType::Accept);
-                    return glib::Propagation::Stop;
-                }
-                glib::Propagation::Proceed
+    key_controller.connect_key_pressed(move |_, key, _, modifiers| match key {
+        gtk4::gdk::Key::Return | gtk4::gdk::Key::KP_Enter => {
+            if modifiers.contains(gtk4::gdk::ModifierType::CONTROL_MASK) {
+                dialog_clone.response(ResponseType::Accept);
+                return glib::Propagation::Stop;
             }
-            gtk4::gdk::Key::Escape => { dialog_clone.response(ResponseType::Cancel); glib::Propagation::Stop }
-            _ => glib::Propagation::Proceed,
+            if let Some(sel) = search_widget_for_keys.selected_exercise() {
+                ex_entry_for_keys.set_text(&sel.code);
+                name_entry_for_keys.set_text(&sel.name);
+                dialog_clone.response(ResponseType::Accept);
+                return glib::Propagation::Stop;
+            }
+            glib::Propagation::Proceed
         }
+        gtk4::gdk::Key::Escape => {
+            dialog_clone.response(ResponseType::Cancel);
+            glib::Propagation::Stop
+        }
+        _ => glib::Propagation::Proceed,
     });
     dialog.add_controller(key_controller);
     dialog.connect_show(move |_| {
         if let Some(search_container) = search_widget.container.first_child() {
-            if let Some(entry) = search_container.downcast_ref::<Entry>() { entry.grab_focus(); }
+            if let Some(entry) = search_container.downcast_ref::<Entry>() {
+                entry.grab_focus();
+            }
         }
     });
 
@@ -484,23 +520,36 @@ fn show_add_superset_exercise_dialog(state: Arc<Mutex<AppState>>, exercises_mode
                 rpe,
                 alt_group,
             };
-            
+
             exercises_data.borrow_mut().push(exercise_data.clone());
-            
+
             let display_text = format_superset_exercise_display(&exercise_data);
             exercises_model.append(&display_text);
         }
         dialog.close();
     }));
-    
+
     dialog.present();
 }
 
 /// Format superset exercise data for display in the list
 fn format_superset_exercise_display(exercise: &SupersetExerciseData) -> String {
     if exercise.reps_min == exercise.reps_max {
-        format!("{}: {}x{} @ RPE {:?}", exercise.ex_name, exercise.sets, exercise.reps_min, exercise.rpe.unwrap_or(0.0))
+        format!(
+            "{}: {}x{} @ RPE {:?}",
+            exercise.ex_name,
+            exercise.sets,
+            exercise.reps_min,
+            exercise.rpe.unwrap_or(0.0)
+        )
     } else {
-        format!("{}: {}x{}-{} @ RPE {:?}", exercise.ex_name, exercise.sets, exercise.reps_min, exercise.reps_max, exercise.rpe.unwrap_or(0.0))
+        format!(
+            "{}: {}x{}-{} @ RPE {:?}",
+            exercise.ex_name,
+            exercise.sets,
+            exercise.reps_min,
+            exercise.reps_max,
+            exercise.rpe.unwrap_or(0.0)
+        )
     }
 }

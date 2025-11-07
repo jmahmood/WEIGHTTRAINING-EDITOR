@@ -1,6 +1,6 @@
-use dirs::{data_dir, state_dir, cache_dir};
-use std::path::PathBuf;
+use dirs::{cache_dir, data_dir, state_dir};
 use std::fs;
+use std::path::PathBuf;
 
 pub struct AppPaths {
     pub data_dir: PathBuf,
@@ -11,29 +11,35 @@ pub struct AppPaths {
 impl AppPaths {
     pub fn new() -> Result<Self, std::io::Error> {
         let app_name = "weightlifting-desktop";
-        
+
         // XDG_DATA_HOME or ~/.local/share
         let data_dir = data_dir()
-            .ok_or_else(|| std::io::Error::new(
-                std::io::ErrorKind::NotFound,
-                "Could not determine data directory"
-            ))?
+            .ok_or_else(|| {
+                std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "Could not determine data directory",
+                )
+            })?
             .join(app_name);
 
-        // XDG_STATE_HOME or ~/.local/state  
+        // XDG_STATE_HOME or ~/.local/state
         let state_dir = state_dir()
-            .ok_or_else(|| std::io::Error::new(
-                std::io::ErrorKind::NotFound,
-                "Could not determine state directory"
-            ))?
+            .ok_or_else(|| {
+                std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "Could not determine state directory",
+                )
+            })?
             .join(app_name);
 
         // XDG_CACHE_HOME or ~/.cache
         let cache_dir = cache_dir()
-            .ok_or_else(|| std::io::Error::new(
-                std::io::ErrorKind::NotFound,
-                "Could not determine cache directory"
-            ))?
+            .ok_or_else(|| {
+                std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "Could not determine cache directory",
+                )
+            })?
             .join(app_name);
 
         // Create directories if they don't exist
@@ -100,11 +106,12 @@ const APP_NAME: &str = "weightlifting-desktop";
 /// - macOS: ~/Library/Application Support/weightlifting-desktop
 /// - Linux: ~/.local/share/weightlifting-desktop
 pub fn get_app_support_dir() -> Result<PathBuf, std::io::Error> {
-    let base = data_dir()
-        .ok_or_else(|| std::io::Error::new(
+    let base = data_dir().ok_or_else(|| {
+        std::io::Error::new(
             std::io::ErrorKind::NotFound,
-            "Could not determine application support directory"
-        ))?;
+            "Could not determine application support directory",
+        )
+    })?;
     let app_dir = base.join(APP_NAME);
     fs::create_dir_all(&app_dir)?;
     Ok(app_dir)
@@ -114,11 +121,12 @@ pub fn get_app_support_dir() -> Result<PathBuf, std::io::Error> {
 /// - macOS: ~/Library/Caches/weightlifting-desktop
 /// - Linux: ~/.cache/weightlifting-desktop
 pub fn get_cache_dir() -> Result<PathBuf, std::io::Error> {
-    let base = cache_dir()
-        .ok_or_else(|| std::io::Error::new(
+    let base = cache_dir().ok_or_else(|| {
+        std::io::Error::new(
             std::io::ErrorKind::NotFound,
-            "Could not determine cache directory"
-        ))?;
+            "Could not determine cache directory",
+        )
+    })?;
     let app_dir = base.join(APP_NAME);
     fs::create_dir_all(&app_dir)?;
     Ok(app_dir)
@@ -137,10 +145,12 @@ pub fn get_drafts_dir() -> Result<PathBuf, std::io::Error> {
     };
 
     let drafts = base
-        .ok_or_else(|| std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            "Could not determine drafts directory"
-        ))?
+        .ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "Could not determine drafts directory",
+            )
+        })?
         .join(APP_NAME)
         .join("drafts");
 

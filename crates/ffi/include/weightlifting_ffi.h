@@ -118,6 +118,13 @@ struct FFIResult ffi_group_add(const char *plan_json,
 struct FFIResult ffi_group_remove(const char *plan_json, const char *group_name);
 
 /**
+ * Adds or updates an exercise dictionary entry in the plan
+ */
+struct FFIResult ffi_dictionary_add_entry(const char *plan_json,
+                                          const char *exercise_code,
+                                          const char *exercise_name);
+
+/**
  * Gets the application support directory path for the platform
  */
 struct FFIResult ffi_get_app_support_dir(void);

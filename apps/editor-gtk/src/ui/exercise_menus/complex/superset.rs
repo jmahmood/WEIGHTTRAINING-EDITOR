@@ -1,21 +1,28 @@
 // Superset creation dialog extracted from complex_dialogs.rs
 
-use crate::state::AppState;
 use super::components::create_exercise_search_section_complex;
+use crate::state::AppState;
 use glib::clone;
 use gtk4::prelude::*;
-use gtk4::{Orientation, Label, StringList, ListView, ScrolledWindow, NoSelection, SignalListItemFactory, StringObject, Box as GtkBox, Entry, SpinButton, Button, Dialog, DialogFlags, ResponseType, Expander};
+use gtk4::{
+    Box as GtkBox, Button, Dialog, DialogFlags, Entry, Expander, Label, ListView, NoSelection,
+    Orientation, ResponseType, ScrolledWindow, SignalListItemFactory, SpinButton, StringList,
+    StringObject,
+};
 use std::sync::{Arc, Mutex};
 
-use crate::ui::exercise_menus::exercise_data::SupersetExerciseData;
 use crate::operations::plan_ops::add_superset_to_plan;
+use crate::ui::exercise_menus::exercise_data::SupersetExerciseData;
 
 pub fn show_add_superset_dialog(state: Arc<Mutex<AppState>>) {
     let dialog = Dialog::with_buttons(
         Some("Create Superset"),
         crate::ui::util::parent_for_dialog().as_ref(),
         DialogFlags::MODAL,
-        &[("Cancel", ResponseType::Cancel), ("Create", ResponseType::Accept)]
+        &[
+            ("Cancel", ResponseType::Cancel),
+            ("Create", ResponseType::Accept),
+        ],
     );
     crate::ui::util::standardize_dialog(&dialog);
     dialog.set_default_size(500, 400);
@@ -31,9 +38,7 @@ pub fn show_add_superset_dialog(state: Arc<Mutex<AppState>>) {
 
     // Superset label
     let label_label = Label::new(Some("Superset Label (optional):"));
-    let label_entry = Entry::builder()
-        .text("Upper Body Superset")
-        .build();
+    let label_entry = Entry::builder().text("Upper Body Superset").build();
 
     content.append(&label_label);
     content.append(&label_entry);
@@ -87,7 +92,11 @@ pub fn show_add_superset_dialog(state: Arc<Mutex<AppState>>) {
         list_item.set_child(Some(&label));
     });
     factory.connect_bind(move |_, list_item| {
-        let string_object = list_item.item().unwrap().downcast::<StringObject>().unwrap();
+        let string_object = list_item
+            .item()
+            .unwrap()
+            .downcast::<StringObject>()
+            .unwrap();
         let label = list_item.child().unwrap().downcast::<Label>().unwrap();
         label.set_text(&string_object.string());
     });
@@ -120,7 +129,8 @@ pub fn show_add_superset_dialog(state: Arc<Mutex<AppState>>) {
     content.append(&exercise_buttons_box);
 
     // Store exercises data for the superset
-    let exercises_data = std::rc::Rc::new(std::cell::RefCell::new(Vec::<SupersetExerciseData>::new()));
+    let exercises_data =
+        std::rc::Rc::new(std::cell::RefCell::new(Vec::<SupersetExerciseData>::new()));
 
     // Add exercise button handler
     add_exercise_btn.connect_clicked(clone!(@strong state, @strong exercises_model, @strong exercises_data => move |_| {
@@ -128,13 +138,15 @@ pub fn show_add_superset_dialog(state: Arc<Mutex<AppState>>) {
     }));
 
     // Remove exercise button handler (removes last added exercise)
-    remove_exercise_btn.connect_clicked(clone!(@strong exercises_model, @strong exercises_data => move |_| {
-        let count = exercises_data.borrow().len();
-        if count > 0 {
-            exercises_model.remove(count as u32 - 1);
-            exercises_data.borrow_mut().remove(count - 1);
-        }
-    }));
+    remove_exercise_btn.connect_clicked(
+        clone!(@strong exercises_model, @strong exercises_data => move |_| {
+            let count = exercises_data.borrow().len();
+            if count > 0 {
+                exercises_model.remove(count as u32 - 1);
+                exercises_data.borrow_mut().remove(count - 1);
+            }
+        }),
+    );
 
     // Move up button handler (moves last exercise up)
     move_up_btn.connect_clicked(clone!(@strong exercises_model, @strong exercises_data => move |_| {
@@ -215,7 +227,10 @@ fn show_add_superset_exercise_dialog(
         Some("Add Exercise to Superset"),
         crate::ui::util::parent_for_dialog().as_ref(),
         DialogFlags::MODAL,
-        &[("Cancel", ResponseType::Cancel), ("Add", ResponseType::Accept)]
+        &[
+            ("Cancel", ResponseType::Cancel),
+            ("Add", ResponseType::Accept),
+        ],
     );
 
     let content = GtkBox::builder()
@@ -228,7 +243,8 @@ fn show_add_superset_exercise_dialog(
         .build();
 
     // Exercise Search Widget (Default)
-    let (search_expander, ex_entry, name_entry, _search_widget) = create_exercise_search_section_complex();
+    let (search_expander, ex_entry, name_entry, _search_widget) =
+        create_exercise_search_section_complex();
     content.append(&search_expander);
 
     // Manual Input Fields (Advanced option)
