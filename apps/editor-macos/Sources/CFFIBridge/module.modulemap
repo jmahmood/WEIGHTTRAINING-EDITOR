@@ -1,0 +1,5 @@
+module CFFIBridge {
+    header "/Users/jmahmood/WEIGHTTRAINING-EDITOR/crates/ffi/include/weightlifting_ffi.h"
+    link "weightlifting_ffi"
+    export *
+}

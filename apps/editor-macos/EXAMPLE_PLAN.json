@@ -1,0 +1,113 @@
+{
+  "name": "Example Training Plan",
+  "author": "Coach Smith",
+  "source_url": null,
+  "license_note": null,
+  "unit": "kg",
+  "dictionary": {
+    "SQ.BB.HB": "Barbell High Bar Squat",
+    "BP.BB.FLAT": "Barbell Bench Press",
+    "DL.BB.CONV": "Conventional Deadlift"
+  },
+  "groups": {
+    "squat_variants": ["SQ.BB.HB", "SQ.BB.LB", "SQ.BB.FRONT"],
+    "press_variants": ["BP.BB.FLAT", "BP.BB.INCLINE", "BP.DB.FLAT"]
+  },
+  "exercise_meta": null,
+  "phase": null,
+  "week_overrides": null,
+  "equipment_policy": null,
+  "progression": null,
+  "warmup": null,
+  "schedule": [
+    {
+      "day": 1,
+      "label": "Upper A",
+      "time_cap_min": null,
+      "goal": null,
+      "equipment_policy": null,
+      "segments": [
+        {
+          "type": "straight",
+          "ex": "BP.BB.FLAT",
+          "alt_group": null,
+          "label": null,
+          "optional": null,
+          "technique": null,
+          "equipment_policy": null,
+          "sets": 3,
+          "sets_range": null,
+          "reps": 8,
+          "time_sec": null,
+          "rest_sec": 180,
+          "rir": null,
+          "rpe": null,
+          "tempo": null,
+          "vbt": null,
+          "load_mode": null,
+          "intensifier": null,
+          "load": null,
+          "anchored": null
+        },
+        {
+          "type": "rpe",
+          "ex": "SQ.BB.HB",
+          "alt_group": "squat_variants",
+          "label": "Competition Squat",
+          "optional": false,
+          "technique": null,
+          "equipment_policy": null,
+          "sets": 4,
+          "sets_range": null,
+          "reps": 5,
+          "time_sec": null,
+          "rest_sec": 240,
+          "rir": null,
+          "rpe": 8.0,
+          "tempo": null,
+          "vbt": null,
+          "load_mode": null,
+          "intensifier": null
+        },
+        {
+          "type": "comment",
+          "text": "Remember to warm up properly before squats"
+        }
+      ]
+    },
+    {
+      "day": 2,
+      "label": "Lower B",
+      "time_cap_min": 90,
+      "goal": "Hypertrophy",
+      "equipment_policy": null,
+      "segments": [
+        {
+          "type": "superset",
+          "label": "Leg Superset",
+          "optional": null,
+          "rounds": 3,
+          "rest_sec": 120,
+          "exercises": [
+            {
+              "ex": "SQ.BB.FRONT",
+              "reps": 12,
+              "time_sec": null,
+              "load": null,
+              "load_mode": null,
+              "technique": null
+            },
+            {
+              "ex": "LEGCURL",
+              "reps": 15,
+              "time_sec": null,
+              "load": null,
+              "load_mode": null,
+              "technique": null
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

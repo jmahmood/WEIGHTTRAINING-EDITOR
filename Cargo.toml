@@ -1,9 +1,10 @@
-[workspace]
+`[workspace]
 members = [
     "crates/core",
-    "crates/validate", 
+    "crates/validate",
     "crates/cli",
     "crates/indexer",
+    "crates/ffi",
     "apps/editor-gtk"
 ]
 resolver = "2"

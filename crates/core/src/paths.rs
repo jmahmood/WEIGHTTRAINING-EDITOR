@@ -92,3 +92,58 @@ impl AppPaths {
         self.data_dir.join("media_attachments.jsonl")
     }
 }
+
+// Standalone functions for FFI compatibility
+const APP_NAME: &str = "weightlifting-desktop";
+
+/// Get the application support directory
+/// - macOS: ~/Library/Application Support/weightlifting-desktop
+/// - Linux: ~/.local/share/weightlifting-desktop
+pub fn get_app_support_dir() -> Result<PathBuf, std::io::Error> {
+    let base = data_dir()
+        .ok_or_else(|| std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "Could not determine application support directory"
+        ))?;
+    let app_dir = base.join(APP_NAME);
+    fs::create_dir_all(&app_dir)?;
+    Ok(app_dir)
+}
+
+/// Get the cache directory
+/// - macOS: ~/Library/Caches/weightlifting-desktop
+/// - Linux: ~/.cache/weightlifting-desktop
+pub fn get_cache_dir() -> Result<PathBuf, std::io::Error> {
+    let base = cache_dir()
+        .ok_or_else(|| std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "Could not determine cache directory"
+        ))?;
+    let app_dir = base.join(APP_NAME);
+    fs::create_dir_all(&app_dir)?;
+    Ok(app_dir)
+}
+
+/// Get the drafts directory (for autosaves and temporary files)
+/// - macOS: ~/Library/Application Support/weightlifting-desktop/drafts
+/// - Linux: ~/.local/state/weightlifting-desktop/drafts
+pub fn get_drafts_dir() -> Result<PathBuf, std::io::Error> {
+    let base = if cfg!(target_os = "macos") {
+        // On macOS, use Application Support for drafts (no separate state dir)
+        data_dir()
+    } else {
+        // On Linux, use XDG_STATE_HOME or ~/.local/state
+        state_dir()
+    };
+
+    let drafts = base
+        .ok_or_else(|| std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "Could not determine drafts directory"
+        ))?
+        .join(APP_NAME)
+        .join("drafts");
+
+    fs::create_dir_all(&drafts)?;
+    Ok(drafts)
+}
