@@ -3,16 +3,28 @@ import SwiftUI
 struct MainWindowView: View {
     @EnvironmentObject var appState: AppState
     @Binding var document: WeightliftingDocument
+    @Environment(\.undoManager) private var undoManager
+    @State private var splitVisibility: NavigationSplitViewVisibility = .all
+
+    private let sidebarWidth: CGFloat = 260
 
     var body: some View {
-        HSplitView {
-            // Canvas (main editing area)
+        NavigationSplitView(columnVisibility: $splitVisibility) {
+            ExerciseSidebarView(plan: document.planDocument)
+                .environmentObject(appState)
+                .frame(minWidth: sidebarWidth, maxWidth: sidebarWidth)
+                .navigationSplitViewColumnWidth(sidebarWidth)
+        } content: {
             CanvasView(plan: document.planDocument)
-                .frame(minWidth: 400, idealWidth: 600)
-
-            // Right panel (exercises and groups)
-            RightPanelView(plan: document.planDocument)
-                .frame(minWidth: 250, idealWidth: 300, maxWidth: 400)
+                .environmentObject(appState)
+                .frame(minWidth: 520)
+                .layoutPriority(1)
+                .navigationSplitViewColumnWidth(min: 520, ideal: 0, max: .infinity)
+        } detail: {
+            InspectorView(plan: document.planDocument)
+                .environmentObject(appState)
+                .frame(minWidth: 320, idealWidth: 360, maxWidth: 440)
+                .navigationSplitViewColumnWidth(min: 320, ideal: 360, max: 440)
         }
         .navigationTitle(document.planDocument.name)
         .navigationSubtitle(documentSubtitle)
@@ -40,6 +52,14 @@ struct MainWindowView: View {
                 plan: document.planDocument,
                 onSave: { /* Groups are updated directly via FFI */ }
             )
+        }
+        .onAppear {
+            appState.activePlan = document.planDocument
+        }
+        .onDisappear {
+            if appState.activePlan === document.planDocument {
+                appState.activePlan = nil
+            }
         }
     }
 
@@ -70,6 +90,7 @@ struct MainWindowView: View {
         guard let dayIndex = appState.editingDayIndex else { return }
 
         do {
+            appState.pushUndo(document.planDocument.planJSON)
             if let segmentIndex = appState.editingSegmentIndex {
                 // Update existing segment
                 try document.planDocument.updateSegment(
@@ -80,6 +101,10 @@ struct MainWindowView: View {
             } else {
                 // Add new segment
                 try document.planDocument.addSegment(segmentJSON, toDayAt: dayIndex)
+                if document.planDocument.days.indices.contains(dayIndex) {
+                    let newIndex = document.planDocument.days[dayIndex].segmentCount - 1
+                    appState.markRecentlyAddedSegment(dayIndex: dayIndex, segmentIndex: newIndex)
+                }
             }
             appState.showSegmentEditor = false
         } catch {

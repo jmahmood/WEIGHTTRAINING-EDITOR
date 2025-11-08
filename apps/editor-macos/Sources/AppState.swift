@@ -7,7 +7,8 @@ class AppState: ObservableObject {
     @Published var selectedDayIndex: Int?
     @Published var selectedSegmentIds: Set<String> = []
     @Published var focusedDayIndex: Int?
-    @Published var selectedSegmentIndices: Set<Int> = []
+    @Published var recentlyAddedSegmentID: String?
+    weak var activePlan: PlanDocument?
 
     // Dialog State
     @Published var showValidation = false
@@ -32,6 +33,7 @@ class AppState: ObservableObject {
     // Undo/Redo (stores JSON snapshots)
     private var undoStack: [String] = []
     private var redoStack: [String] = []
+    private var lastSelectedCoordinate: (day: Int, index: Int)?
 
     init() {
         // Initialize preferences from UserDefaults
@@ -42,26 +44,39 @@ class AppState: ObservableObject {
 
     func selectDay(_ index: Int) {
         selectedDayIndex = index
-        selectedSegmentIndices.removeAll()
+        clearSelection()
     }
 
-    func selectSegment(_ index: Int, multiSelect: Bool = false, rangeSelect: Bool = false) {
+    func selectSegment(_ segment: SegmentDisplay, in plan: PlanDocument, multiSelect: Bool = false, rangeSelect: Bool = false) {
+        let identifier = segment.id
         if multiSelect {
-            if selectedSegmentIndices.contains(index) {
-                selectedSegmentIndices.remove(index)
+            if selectedSegmentIds.contains(identifier) {
+                selectedSegmentIds.remove(identifier)
             } else {
-                selectedSegmentIndices.insert(index)
+                selectedSegmentIds.insert(identifier)
             }
-        } else if rangeSelect, let last = selectedSegmentIndices.max() {
-            let range = min(last, index)...max(last, index)
-            selectedSegmentIndices.formUnion(range)
+            lastSelectedCoordinate = (segment.dayIndex, segment.index)
+        } else if rangeSelect, let last = lastSelectedCoordinate, last.day == segment.dayIndex {
+            let segments = plan.days[segment.dayIndex].segments()
+            let lower = min(last.index, segment.index)
+            let upper = max(last.index, segment.index)
+            guard lower >= 0, upper < segments.count else {
+                selectedSegmentIds = [identifier]
+                lastSelectedCoordinate = (segment.dayIndex, segment.index)
+                return
+            }
+            let rangeIDs = segments[lower...upper].map(\.id)
+            selectedSegmentIds.formUnion(rangeIDs)
+            lastSelectedCoordinate = (segment.dayIndex, segment.index)
         } else {
-            selectedSegmentIndices = [index]
+            selectedSegmentIds = [identifier]
+            lastSelectedCoordinate = (segment.dayIndex, segment.index)
         }
     }
 
     func clearSelection() {
-        selectedSegmentIndices.removeAll()
+        selectedSegmentIds.removeAll()
+        lastSelectedCoordinate = nil
     }
 
     // MARK: - Editing Actions
@@ -100,12 +115,34 @@ class AppState: ObservableObject {
         return planJSON
     }
 
+    func performUndo(on plan: PlanDocument) {
+        guard let previous = undoStack.popLast() else { return }
+        redoStack.append(plan.planJSON)
+        plan.updatePlan(previous)
+    }
+
+    func performRedo(on plan: PlanDocument) {
+        guard let redoJSON = redoStack.popLast() else { return }
+        undoStack.append(plan.planJSON)
+        plan.updatePlan(redoJSON)
+    }
+
     var canUndo: Bool {
         !undoStack.isEmpty
     }
 
     var canRedo: Bool {
         !redoStack.isEmpty
+    }
+
+    func markRecentlyAddedSegment(dayIndex: Int, segmentIndex: Int) {
+        let identifier = "\(dayIndex)_\(segmentIndex)"
+        recentlyAddedSegmentID = identifier
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+            if self?.recentlyAddedSegmentID == identifier {
+                self?.recentlyAddedSegmentID = nil
+            }
+        }
     }
 
     // MARK: - Preferences

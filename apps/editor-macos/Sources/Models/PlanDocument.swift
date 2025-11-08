@@ -44,7 +44,11 @@ class PlanDocument: ObservableObject {
     // MARK: - Plan Properties
 
     var name: String {
-        parsed?["name"] as? String ?? "Untitled Plan"
+        let raw = parsed?["name"] as? String ?? "Untitled Plan"
+        if raw.lowercased().hasSuffix(".json") {
+            return String(raw.dropLast(5))
+        }
+        return raw
     }
 
     var author: String? {
@@ -381,6 +385,76 @@ struct SegmentDisplay: Identifiable {
             return nil
         }
         return json
+    }
+}
+
+extension SegmentDisplay {
+    var humanReadableType: String {
+        type.replacingOccurrences(of: ".", with: " ").capitalized
+    }
+
+    func primaryTitle(with plan: PlanDocument) -> String {
+        if let base = segmentDict["base"] as? [String: Any] {
+            if let label = base["label"] as? String, !label.isEmpty {
+                return label
+            }
+            if let ex = base["ex"] as? String {
+                if let friendly = plan.dictionary[ex] {
+                    return friendly
+                }
+                return ex
+            }
+        }
+        if let label = segmentDict["label"] as? String, !label.isEmpty {
+            return label
+        }
+        if let text = segmentDict["text"] as? String, !text.isEmpty {
+            return text
+        }
+        return displayText
+    }
+
+    var setsDescription: String {
+        if let sets = segmentDict["sets"] as? Int {
+            if let repsRange = segmentDict["reps"] as? [String: Any] {
+                if let min = repsRange["min"] as? Int, let max = repsRange["max"] as? Int {
+                    if min == max {
+                        return "\(sets) × \(min)"
+                    }
+                    return "\(sets) × \(min)–\(max)"
+                }
+            } else if let reps = segmentDict["reps"] as? Int {
+                return "\(sets) × \(reps)"
+            }
+            return "\(sets) sets"
+        }
+        if let rounds = segmentDict["rounds"] as? Int, rounds > 0 {
+            return "\(rounds) rounds"
+        }
+        return "—"
+    }
+
+    var restDescription: String {
+        if let rest = segmentDict["rest_sec"] as? Int {
+            return "\(rest) s"
+        }
+        if let rest = segmentDict["rest_between_rounds_sec"] as? Int {
+            return "\(rest) s between rounds"
+        }
+        return "—"
+    }
+
+    var notesDescription: String {
+        if let note = segmentDict["note"] as? String, !note.isEmpty {
+            return note
+        }
+        if type == "comment", let text = segmentDict["text"] as? String, !text.isEmpty {
+            return text
+        }
+        if let tempo = segmentDict["tempo"] as? String, !tempo.isEmpty {
+            return "Tempo \(tempo)"
+        }
+        return "—"
     }
 }
 
