@@ -388,7 +388,70 @@ struct SegmentDisplay: Identifiable {
     }
 }
 
+struct InspectorItem: Identifiable {
+    let id = UUID()
+    let title: String
+    let value: String
+}
+
+struct GroupExerciseDetail: Identifiable {
+    let id = UUID()
+    let name: String
+    let code: String?
+    let details: String
+    let notes: String?
+}
+
+struct SchemeSetDetail: Identifiable {
+    let id = UUID()
+    let title: String
+    let summary: String
+    let rest: String?
+    let notes: String?
+}
+
 extension SegmentDisplay {
+    enum SegmentKind {
+        case straight
+        case rpe
+        case percentage
+        case amrap
+        case time
+        case superset
+        case circuit
+        case scheme
+        case comment
+        case choose
+        case generic
+    }
+
+    var kind: SegmentKind {
+        switch type {
+        case "straight":
+            return .straight
+        case "rpe":
+            return .rpe
+        case "percentage":
+            return .percentage
+        case "amrap":
+            return .amrap
+        case "time":
+            return .time
+        case "superset", "group.superset":
+            return .superset
+        case "circuit", "group.circuit":
+            return .circuit
+        case "scheme":
+            return .scheme
+        case "comment":
+            return .comment
+        case "choose":
+            return .choose
+        default:
+            return .generic
+        }
+    }
+
     var humanReadableType: String {
         type.replacingOccurrences(of: ".", with: " ").capitalized
     }
@@ -455,6 +518,295 @@ extension SegmentDisplay {
             return "Tempo \(tempo)"
         }
         return "—"
+    }
+
+    var exerciseCode: String? {
+        baseValue("ex") ?? segmentDict["ex"] as? String
+    }
+
+    var altGroupCode: String? {
+        baseValue("alt_group") ?? segmentDict["alt_group"] as? String
+    }
+
+    var commentText: String? {
+        segmentDict["text"] as? String
+    }
+
+    func basicInspectorItems(plan: PlanDocument) -> [InspectorItem] {
+        var items: [InspectorItem] = []
+        if let code = exerciseCode {
+            let name = plan.dictionary[code] ?? code
+            items.append(.init(title: "Exercise", value: name))
+            items.append(.init(title: "Code", value: code))
+        } else {
+            items.append(.init(title: "Exercise", value: primaryTitle(with: plan)))
+        }
+
+        if let alt = altGroupCode {
+            items.append(.init(title: "Alt Group", value: alt))
+        }
+
+        items.append(.init(title: "Sets × Reps", value: setsDescription))
+
+        if let rest = restSeconds {
+            items.append(.init(title: "Rest", value: SegmentDisplay.formatSeconds(rest)))
+        }
+
+        if let between = intValue("rest_between_rounds_sec") {
+            items.append(.init(title: "Between Rounds", value: SegmentDisplay.formatSeconds(between)))
+        }
+
+        if let rpe = rpeValue {
+            items.append(.init(title: "RPE", value: SegmentDisplay.formatDecimal(rpe)))
+        }
+
+        if let rir = doubleValue("rir") {
+            items.append(.init(title: "RIR", value: SegmentDisplay.formatDecimal(rir)))
+        }
+
+        if let tempo = tempoValue {
+            items.append(.init(title: "Tempo", value: tempo))
+        }
+
+        if let notes = inspectorNote {
+            items.append(.init(title: "Notes", value: notes))
+        }
+
+        return items
+    }
+
+    func groupMetadataItems() -> [InspectorItem] {
+        var items: [InspectorItem] = []
+        if let rounds = intValue("rounds") {
+            items.append(.init(title: "Rounds", value: "\(rounds)"))
+        }
+        if let rest = restSeconds {
+            items.append(.init(title: "Rest", value: SegmentDisplay.formatSeconds(rest)))
+        }
+        if let between = intValue("rest_between_rounds_sec") {
+            items.append(.init(title: "Between Rounds", value: SegmentDisplay.formatSeconds(between)))
+        }
+        if let pairing = stringValue("pairing") {
+            items.append(.init(title: "Pairing", value: pairing))
+        }
+        return items
+    }
+
+    func groupExercises(plan: PlanDocument) -> [GroupExerciseDetail] {
+        let possibleKeys = ["exercises", "items", "children", "segments"]
+        var stack: [[String: Any]] = []
+        for key in possibleKeys {
+            if let entries = segmentDict[key] as? [[String: Any]] {
+                stack.append(contentsOf: entries)
+            }
+        }
+
+        guard !stack.isEmpty else {
+            return []
+        }
+
+        return stack.enumerated().map { index, entry in
+            let code = entry["ex"] as? String
+            let name = code.flatMap { plan.dictionary[$0] } ??
+                (entry["label"] as? String) ??
+                "Item \(index + 1)"
+
+            var details: [String] = []
+            if let sets = entry["sets"] as? Int {
+                details.append("\(sets) sets")
+            }
+
+            if let repsDetail = SegmentDisplay.describeReps(from: entry["reps"]) {
+                details.append(repsDetail)
+            } else if let reps = entry["reps"] as? Int {
+                details.append("\(reps) reps")
+            } else if let range = entry["reps_min"] as? Int, let max = entry["reps_max"] as? Int {
+                details.append("\(range)-\(max) reps")
+            }
+
+            if let rest = entry["rest_sec"] as? Int {
+                details.append("Rest \(SegmentDisplay.formatSeconds(rest))")
+            }
+
+            if let time = entry["time_sec"] as? Int {
+                details.append("\(SegmentDisplay.formatSeconds(time)) duration")
+            }
+
+            if let rpe = entry["rpe"] as? Double {
+                details.append("RPE \(SegmentDisplay.formatDecimal(rpe))")
+            }
+
+            let notes = entry["note"] as? String
+            return GroupExerciseDetail(name: name,
+                                       code: code,
+                                       details: details.joined(separator: " • "),
+                                       notes: notes)
+        }
+    }
+
+    func schemeSetDetails() -> [SchemeSetDetail] {
+        guard let sets = segmentDict["sets"] as? [[String: Any]] else {
+            return []
+        }
+
+        return sets.enumerated().map { index, entry in
+            let title = entry["label"] as? String ?? "Set \(index + 1)"
+            var parts: [String] = []
+            if let count = entry["sets"] as? Int {
+                parts.append("\(count) sets")
+            }
+            if let repsDetail = SegmentDisplay.describeReps(from: entry["reps"]) {
+                parts.append(repsDetail)
+            } else if let reps = entry["reps"] as? Int {
+                parts.append("\(reps) reps")
+            }
+            if let rpe = entry["rpe"] as? Double {
+                parts.append("RPE \(SegmentDisplay.formatDecimal(rpe))")
+            }
+            if let tempo = entry["tempo"] as? String {
+                parts.append("Tempo \(tempo)")
+            }
+            let rest = (entry["rest_sec"] as? Int).map { SegmentDisplay.formatSeconds($0) }
+            let notes = entry["note"] as? String
+            return SchemeSetDetail(title: title, summary: parts.joined(separator: " • "), rest: rest, notes: notes)
+        }
+    }
+
+    func choiceOptions(plan: PlanDocument) -> [String] {
+        if let options = segmentDict["options"] as? [String] {
+            return options
+        }
+        if let from = segmentDict["from"] as? [[String: Any]] {
+            return from.enumerated().map { index, entry in
+                if let code = entry["ex"] as? String {
+                    return plan.dictionary[code] ?? code
+                }
+                if let label = entry["label"] as? String {
+                    return label
+                }
+                return "Option \(index + 1)"
+            }
+        }
+        if let array = segmentDict["from"] as? [String] {
+            return array
+        }
+        return []
+    }
+
+    var restSeconds: Int? {
+        intValue("rest_sec")
+    }
+
+    var tempoValue: String? {
+        stringValue("tempo")
+    }
+
+    var rpeValue: Double? {
+        doubleValue("rpe")
+    }
+
+    var inspectorNote: String? {
+        if let note = segmentDict["note"] as? String, !note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return note
+        }
+        if kind == .comment, let text = segmentDict["text"] as? String, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return text
+        }
+        return nil
+    }
+
+    func stringValue(_ key: String) -> String? {
+        baseValue(key) ?? segmentDict[key] as? String
+    }
+
+    func intValue(_ key: String) -> Int? {
+        if let value: Int = baseValue(key) {
+            return value
+        }
+        if let number = segmentDict[key] as? NSNumber {
+            return number.intValue
+        }
+        return segmentDict[key] as? Int
+    }
+
+    func doubleValue(_ key: String) -> Double? {
+        if let value: Double = baseValue(key) {
+            return value
+        }
+        if let number = segmentDict[key] as? NSNumber {
+            return number.doubleValue
+        }
+        return segmentDict[key] as? Double
+    }
+
+    private func baseDictionary() -> [String: Any]? {
+        segmentDict["base"] as? [String: Any]
+    }
+
+    private func baseValue<T>(_ key: String) -> T? {
+        baseDictionary()?[key] as? T
+    }
+
+    private static func formatSeconds(_ seconds: Int) -> String {
+        if seconds >= 60 {
+            let minutes = seconds / 60
+            let remainder = seconds % 60
+            if remainder == 0 {
+                return "\(minutes)m"
+            } else {
+                return "\(minutes)m \(remainder)s"
+            }
+        }
+        return "\(seconds)s"
+    }
+
+    static func formatDecimal(_ value: Double) -> String {
+        if value == floor(value) {
+            return String(format: "%.0f", value)
+        }
+        return String(format: "%.1f", value)
+    }
+
+    static func describeReps(from value: Any?) -> String? {
+        guard let dict = value as? [String: Any] else {
+            return nil
+        }
+        if let min = dict["min"] as? Int, let max = dict["max"] as? Int {
+            if min == max {
+                return "\(min) reps"
+            }
+            return "\(min)–\(max) reps"
+        }
+        if let reps = dict["value"] as? Int {
+            return "\(reps) reps"
+        }
+        return nil
+    }
+
+    static func prettyValue(_ value: Any) -> String {
+        if let string = value as? String {
+            return string
+        }
+        if let number = value as? NSNumber {
+            return number.stringValue
+        }
+        if let bool = value as? Bool {
+            return bool ? "True" : "False"
+        }
+        if let array = value as? [Any] {
+            return array.map { prettyValue($0) }.joined(separator: ", ")
+        }
+        if let dict = value as? [String: Any] {
+            let pairs = dict.map { "\($0.key): \(prettyValue($0.value))" }
+            return "{ \(pairs.joined(separator: ", ")) }"
+        }
+        return "\(value)"
+    }
+}
+
+private extension String {
+    var nonEmptyValue: String? {
+        isEmpty ? nil : self
     }
 }
 

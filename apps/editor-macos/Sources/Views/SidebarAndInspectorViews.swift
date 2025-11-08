@@ -5,7 +5,8 @@ struct ExerciseSidebarView: View {
     @EnvironmentObject var appState: AppState
 
     @State private var selectedTab = 0
-    @State private var searchText = ""
+    @State private var exerciseSearchText = ""
+    @State private var groupSearchText = ""
     @State private var showingAddExercise = false
     @State private var showingAddGroup = false
     @State private var selectedGroupForEdit: String?
@@ -53,7 +54,7 @@ struct ExerciseSidebarView: View {
 
     private var exerciseLibrary: some View {
         VStack(alignment: .leading, spacing: 8) {
-            SearchField(text: $searchText, placeholder: "Search exercises...")
+            SearchField(text: $exerciseSearchText, placeholder: "Search exercises...")
                 .padding(.horizontal)
 
             HStack {
@@ -85,6 +86,10 @@ struct ExerciseSidebarView: View {
 
     private var groupsLibrary: some View {
         VStack(alignment: .leading, spacing: 8) {
+            SearchField(text: $groupSearchText, placeholder: "Search groups, exercises, or codes")
+                .padding(.horizontal)
+                .padding(.top, 4)
+
             HStack {
                 Button {
                     showingAddGroup = true
@@ -104,74 +109,80 @@ struct ExerciseSidebarView: View {
             }
             .padding(.horizontal)
 
-            List(filteredGroups.sorted(by: { $0.key < $1.key }), id: \.key) { name, exercises in
-                DisclosureGroup {
-                    ForEach(exercises, id: \.self) { code in
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(plan.dictionary[code] ?? code)
-                                .font(.body)
-                            Text(code)
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
+            let groups = filteredGroups
+            if groups.isEmpty {
+                GroupSearchEmptyState(searchText: groupSearchText)
+                    .padding()
+            } else {
+                List(groups.sorted(by: { $0.key < $1.key }), id: \.key) { name, exercises in
+                    DisclosureGroup {
+                        ForEach(exercises, id: \.self) { code in
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(plan.dictionary[code] ?? code)
+                                    .font(.body)
+                                Text(code)
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(.vertical, 2)
                         }
-                        .padding(.vertical, 2)
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(name)
+                                    .font(.body)
+                                Text("\(exercises.count) exercises")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                            Button {
+                                selectedGroupForEdit = name
+                            } label: {
+                                Image(systemName: "pencil")
+                            }
+                            .buttonStyle(.borderless)
+                        }
                     }
-                } label: {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(name)
-                                .font(.body)
-                            Text("\(exercises.count) exercises")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        Spacer()
-                        Button {
+                    .contextMenu {
+                        Button("Edit Group") {
                             selectedGroupForEdit = name
-                        } label: {
-                            Image(systemName: "pencil")
                         }
-                        .buttonStyle(.borderless)
+                        Button("Delete Group", role: .destructive) {
+                            appState.pushUndo(plan.planJSON)
+                            deleteGroup(name)
+                        }
                     }
                 }
-                .contextMenu {
-                    Button("Edit Group") {
-                        selectedGroupForEdit = name
-                    }
-                    Button("Delete Group", role: .destructive) {
-                        appState.pushUndo(plan.planJSON)
-                        deleteGroup(name)
-                    }
-                }
+                .listStyle(.inset)
             }
-            .listStyle(.inset)
         }
     }
 
     private var filteredExercises: [(key: String, value: String)] {
         let dictionary = plan.dictionary
-        if searchText.isEmpty {
+        if exerciseSearchText.isEmpty {
             return dictionary.sorted(by: { $0.key < $1.key })
         }
 
         return dictionary.filter { key, value in
-            key.localizedCaseInsensitiveContains(searchText) ||
-            value.localizedCaseInsensitiveContains(searchText)
+            key.localizedCaseInsensitiveContains(exerciseSearchText) ||
+            value.localizedCaseInsensitiveContains(exerciseSearchText)
         }
         .sorted { $0.key < $1.key }
     }
 
     private var filteredGroups: [String: [String]] {
-        if searchText.isEmpty {
+        if groupSearchText.isEmpty {
             return plan.groups
         }
 
         return plan.groups.filter { name, exercises in
-            if name.localizedCaseInsensitiveContains(searchText) {
+            if name.localizedCaseInsensitiveContains(groupSearchText) {
                 return true
             }
-            return exercises.contains(where: { $0.localizedCaseInsensitiveContains(searchText) }) ||
-                   exercises.contains(where: { plan.dictionary[$0]?.localizedCaseInsensitiveContains(searchText) == true })
+            return exercises.contains(where: { $0.localizedCaseInsensitiveContains(groupSearchText) }) ||
+                   exercises.contains(where: { plan.dictionary[$0]?.localizedCaseInsensitiveContains(groupSearchText) == true })
         }
     }
 
@@ -226,26 +237,22 @@ struct InspectorView: View {
                     .font(.headline)
 
                 VStack(alignment: .leading, spacing: 8) {
-                Text(segment.primaryTitle(with: plan))
-                    .font(.title3)
-                    .fontWeight(.semibold)
-                Text(segment.humanReadableType)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    Text(segment.primaryTitle(with: plan))
+                        .font(.title3)
+                        .fontWeight(.semibold)
+                    Text(segment.humanReadableType)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                Divider()
+
+                SegmentDetailView(segment: segment, plan: plan)
+
+                Spacer()
+            } else {
+                InspectorEmptyState()
             }
-
-            Divider()
-
-            VStack(alignment: .leading, spacing: 12) {
-                InspectorMetricRow(title: "Sets × Reps", value: segment.setsDescription)
-                InspectorMetricRow(title: "Rest", value: segment.restDescription)
-                InspectorMetricRow(title: "Notes", value: segment.notesDescription)
-            }
-
-            Spacer()
-        } else {
-            InspectorEmptyState()
-        }
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -285,6 +292,201 @@ struct InspectorEmptyState: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         .padding(.horizontal)
+    }
+}
+
+struct GroupSearchEmptyState: View {
+    let searchText: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(searchText.isEmpty ? "No groups defined yet." : "No groups match “\(searchText)”")
+                .font(.body)
+            Text(searchText.isEmpty ? "Use the Add Group button to create one." : "Try searching by another group name or exercise.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+struct SegmentDetailView: View {
+    let segment: SegmentDisplay
+    @ObservedObject var plan: PlanDocument
+
+    var body: some View {
+        switch segment.kind {
+        case .straight, .rpe, .percentage, .amrap, .time:
+            InspectorKeyValueList(items: segment.basicInspectorItems(plan: plan))
+        case .superset, .circuit:
+            GroupInspectorDetail(metadata: segment.groupMetadataItems(),
+                                 exercises: segment.groupExercises(plan: plan))
+        case .scheme:
+            SchemeInspectorDetail(exerciseName: segment.primaryTitle(with: plan),
+                                  code: segment.exerciseCode ?? "",
+                                  sets: segment.schemeSetDetails())
+        case .comment:
+            CommentInspectorDetail(text: segment.commentText ?? "No comment provided.")
+        case .choose:
+            ChooseInspectorDetail(pick: segment.intValue("pick"),
+                                  options: segment.choiceOptions(plan: plan))
+        default:
+            GenericInspectorDetail(dictionary: segment.segmentDict)
+        }
+    }
+}
+
+struct InspectorKeyValueList: View {
+    let items: [InspectorItem]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            ForEach(items) { item in
+                InspectorMetricRow(title: item.title, value: item.value)
+            }
+        }
+    }
+}
+
+struct GroupInspectorDetail: View {
+    let metadata: [InspectorItem]
+    let exercises: [GroupExerciseDetail]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            if !metadata.isEmpty {
+                InspectorKeyValueList(items: metadata)
+            }
+
+            if !exercises.isEmpty {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Exercises")
+                        .font(.headline)
+                    ForEach(exercises) { exercise in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(exercise.name)
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                            if let code = exercise.code {
+                                Text(code)
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                            if !exercise.details.isEmpty {
+                                Text(exercise.details)
+                                    .font(.caption)
+                            }
+                            if let notes = exercise.notes {
+                                Text(notes)
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .padding(8)
+                        .background(Color(NSColor.controlBackgroundColor))
+                        .cornerRadius(6)
+                    }
+                }
+            } else {
+                Text("No exercises listed for this group.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+}
+
+struct SchemeInspectorDetail: View {
+    let exerciseName: String
+    let code: String
+    let sets: [SchemeSetDetail]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            InspectorMetricRow(title: "Exercise", value: exerciseName)
+            if !code.isEmpty {
+                InspectorMetricRow(title: "Code", value: code)
+            }
+
+            if sets.isEmpty {
+                Text("No scheme sets defined.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            } else {
+                ForEach(sets) { set in
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(set.title)
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                        Text(set.summary)
+                            .font(.caption)
+                        if let rest = set.rest {
+                            Text("Rest: \(rest)")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                        if let notes = set.notes {
+                            Text(notes)
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .padding(8)
+                    .background(Color(NSColor.controlBackgroundColor))
+                    .cornerRadius(6)
+                }
+            }
+        }
+    }
+}
+
+struct CommentInspectorDetail: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.body)
+            .padding()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(NSColor.controlBackgroundColor))
+            .cornerRadius(6)
+    }
+}
+
+struct ChooseInspectorDetail: View {
+    let pick: Int?
+    let options: [String]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if let pick = pick {
+                InspectorMetricRow(title: "Pick", value: "\(pick)")
+            }
+
+            if options.isEmpty {
+                Text("No options provided.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            } else {
+                Text("Options")
+                    .font(.headline)
+                ForEach(options, id: \.self) { option in
+                    Text("• \(option)")
+                        .font(.caption)
+                }
+            }
+        }
+    }
+}
+
+struct GenericInspectorDetail: View {
+    let dictionary: [String: Any]
+
+    var body: some View {
+        let rows = dictionary
+            .map { InspectorItem(title: $0.key.capitalized.replacingOccurrences(of: "_", with: " "), value: SegmentDisplay.prettyValue($0.value)) }
+            .sorted { $0.title < $1.title }
+        InspectorKeyValueList(items: rows)
     }
 }
 

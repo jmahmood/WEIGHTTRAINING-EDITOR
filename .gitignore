@@ -1,4 +1,6 @@
 /target
+build
+.build
 docs
 logs
 outbox

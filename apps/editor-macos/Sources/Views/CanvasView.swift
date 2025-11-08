@@ -183,21 +183,17 @@ struct SegmentRowView: View {
                 .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 2)
         )
         .onTapGesture {
-            let modifiers = NSEvent.modifierFlags
-            if modifiers.contains(.command) {
-                appState.selectSegment(segment, in: plan, multiSelect: true)
-            } else if modifiers.contains(.shift) {
-                appState.selectSegment(segment, in: plan, rangeSelect: true)
-            } else {
-                appState.selectSegment(segment, in: plan)
-                appState.selectedDayIndex = segment.dayIndex
-            }
+            handleSelection()
         }
+        .highPriorityGesture(
+            TapGesture(count: 2)
+                .onEnded { _ in
+                    openEditor()
+                }
+        )
         .contextMenu {
             Button("Edit") {
-                if let json = segment.toJSON() {
-                    appState.editSegmentJSON(json, at: segment.index, in: segment.dayIndex)
-                }
+                openEditor()
             }
             Button("Duplicate") {
                 // TODO: Implement duplicate
@@ -231,6 +227,24 @@ struct SegmentRowView: View {
             try plan.removeSegment(at: segment.index, fromDayAt: segment.dayIndex)
         } catch {
             print("Failed to delete segment: \(error)")
+        }
+    }
+
+    private func openEditor() {
+        if let json = segment.toJSON() {
+            appState.editSegmentJSON(json, at: segment.index, in: segment.dayIndex)
+        }
+    }
+
+    private func handleSelection() {
+        let modifiers = NSEvent.modifierFlags
+        if modifiers.contains(.command) {
+            appState.selectSegment(segment, in: plan, multiSelect: true)
+        } else if modifiers.contains(.shift) {
+            appState.selectSegment(segment, in: plan, rangeSelect: true)
+        } else {
+            appState.selectSegment(segment, in: plan)
+            appState.selectedDayIndex = segment.dayIndex
         }
     }
 
