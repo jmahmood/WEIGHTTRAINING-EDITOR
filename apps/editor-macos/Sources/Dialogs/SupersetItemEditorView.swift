@@ -16,6 +16,7 @@ struct SupersetItemEditorView: View {
     @State private var repsMax = 12
     @State private var rpe: Double = 8.0
     @State private var useRPE = false
+    @State private var restSec = 60
     @State private var altGroup: String?
 
     var body: some View {
@@ -61,6 +62,10 @@ struct SupersetItemEditorView: View {
                                 .frame(width: 40)
                         }
                     }
+                }
+
+                Section("Rest") {
+                    Stepper("Rest Seconds: \(restSec)", value: $restSec, in: 0...180, step: 15)
                 }
             }
 
@@ -117,6 +122,9 @@ struct SupersetItemEditorView: View {
             useRPE = true
             rpe = rpeValue
         }
+        if let restValue = item["rest_sec"] as? Int {
+            restSec = restValue
+        }
     }
 
     private func saveItem() {
@@ -139,6 +147,8 @@ struct SupersetItemEditorView: View {
         if useRPE {
             itemDict["rpe"] = rpe
         }
+
+        itemDict["rest_sec"] = restSec
 
         // Save alt_group
         if let altGroup = altGroup {

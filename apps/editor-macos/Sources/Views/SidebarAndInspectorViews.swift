@@ -3,8 +3,6 @@ import SwiftUI
 struct ExerciseSidebarView: View {
     @ObservedObject var plan: PlanDocument
     @EnvironmentObject var appState: AppState
-
-    @State private var selectedTab = 0
     @State private var exerciseSearchText = ""
     @State private var groupSearchText = ""
     @State private var showingAddExercise = false
@@ -13,7 +11,10 @@ struct ExerciseSidebarView: View {
 
     var body: some View {
         VStack(spacing: 8) {
-            Picker("", selection: $selectedTab) {
+            Picker("", selection: Binding(
+                get: { appState.sidebarTab == .exercises ? 0 : 1 },
+                set: { appState.sidebarTab = $0 == 0 ? .exercises : .groups }
+            )) {
                 Text("Exercises").tag(0)
                 Text("Groups").tag(1)
             }
@@ -21,7 +22,7 @@ struct ExerciseSidebarView: View {
             .padding(.horizontal)
             .padding(.top, 12)
 
-            if selectedTab == 0 {
+            if appState.sidebarTab == .exercises {
                 exerciseLibrary
             } else {
                 groupsLibrary
@@ -217,6 +218,7 @@ struct ExerciseSidebarView: View {
 struct InspectorView: View {
     @ObservedObject var plan: PlanDocument
     @EnvironmentObject var appState: AppState
+    @State private var targetedGroup: String?
 
     private var selection: SegmentDisplay? {
         guard let identifier = appState.selectedSegmentIds.first else { return nil }
@@ -254,11 +256,60 @@ struct InspectorView: View {
                 InspectorEmptyState()
             }
         }
+        .toolbar {
+            if let segment = selection,
+               let group = segment.altGroupCode {
+                ToolbarItem {
+                    Button {
+                        targetedGroup = group
+                    } label: {
+                        Label("Edit Group", systemImage: "pencil")
+                    }
+                    .help("Edit group \(group)")
+                }
+            }
+        }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Color(NSColor.windowBackgroundColor))
+        .sheet(item: Binding(
+            get: { targetedGroup.map { GroupIdentifier(name: $0) } },
+            set: { targetedGroup = $0?.name }
+        )) { (identifier: GroupIdentifier) in
+            GroupEditContainer(plan: plan, groupName: identifier.name)
+                .environmentObject(appState)
+        }
     }
 
+}
+
+private struct GroupEditContainer: View {
+    @ObservedObject var plan: PlanDocument
+    let groupName: String
+    @EnvironmentObject var appState: AppState
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        let exercises = plan.groups[groupName] ?? []
+        SingleGroupEditorView(
+            plan: plan,
+            groupName: groupName,
+            exercises: exercises,
+            onSave: { updated in
+                appState.pushUndo(plan.planJSON)
+                if let updatedJSON = try? RustBridge.addGroup(name: groupName, exercises: updated, to: plan.planJSON) {
+                    plan.updatePlan(updatedJSON)
+                }
+            },
+            onDelete: {
+                appState.pushUndo(plan.planJSON)
+                if let updatedJSON = try? RustBridge.removeGroup(name: groupName, from: plan.planJSON) {
+                    plan.updatePlan(updatedJSON)
+                }
+                dismiss()
+            }
+        )
+    }
 }
 
 struct InspectorMetricRow: View {
@@ -333,6 +384,33 @@ struct SegmentDetailView: View {
         default:
             GenericInspectorDetail(dictionary: segment.segmentDict)
         }
+    }
+}
+
+struct SegmentPreviewSheet: View {
+    @ObservedObject var plan: PlanDocument
+    let token: AppState.SegmentPreviewToken
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            if let segment = plan.segmentDisplay(dayIndex: token.dayIndex, segmentIndex: token.segmentIndex) {
+                SegmentDetailView(segment: segment, plan: plan)
+            } else {
+                Text("Segment preview unavailable.")
+                    .foregroundColor(.secondary)
+            }
+
+            HStack {
+                Spacer()
+                Button("Close") {
+                    dismiss()
+                }
+                .keyboardShortcut(.cancelAction)
+            }
+        }
+        .padding()
+        .frame(width: 420, height: 360)
     }
 }
 
@@ -822,5 +900,21 @@ struct AddNewGroupDialog: View {
 
         onAdd(trimmedName)
         dismiss()
+    }
+}
+
+private extension Binding where Value == String? {
+    func mapToIdentifier() -> Binding<GroupIdentifier?> {
+        Binding<GroupIdentifier?>(
+            get: {
+                if let name = wrappedValue {
+                    return GroupIdentifier(name: name)
+                }
+                return nil
+            },
+            set: { newValue in
+                wrappedValue = newValue?.name
+            }
+        )
     }
 }

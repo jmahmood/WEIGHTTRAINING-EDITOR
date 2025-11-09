@@ -53,6 +53,9 @@ struct MainWindowView: View {
                 onSave: { /* Groups are updated directly via FFI */ }
             )
         }
+        .sheet(item: $appState.previewToken) { token in
+            SegmentPreviewSheet(plan: document.planDocument, token: token)
+        }
         .onAppear {
             appState.activePlan = document.planDocument
         }

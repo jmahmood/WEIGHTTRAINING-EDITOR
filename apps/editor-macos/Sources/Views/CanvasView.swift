@@ -1,23 +1,43 @@
 import SwiftUI
 
+struct SegmentActions {
+    let edit: () -> Void
+    let preview: () -> Void
+}
+
+struct SegmentActionsKey: FocusedValueKey {
+    typealias Value = SegmentActions
+}
+
+extension FocusedValues {
+    var segmentActions: SegmentActions? {
+        get { self[SegmentActionsKey.self] }
+        set { self[SegmentActionsKey.self] = newValue }
+    }
+}
+
 struct CanvasView: View {
     @ObservedObject var plan: PlanDocument
     @EnvironmentObject var appState: AppState
+    @FocusState private var canvasFocused: Bool
 
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 20) {
+                    header
                     if plan.days.isEmpty {
                         EmptyStateView {
-                            appState.showDayEditor = true
+                            canvasFocused = true
+                            appState.addDay()
                         }
                     } else {
                         ForEach(plan.days) { day in
                             DayView(
                                 plan: plan,
                                 day: day,
-                                isSelected: appState.selectedDayIndex == day.id
+                                isSelected: appState.selectedDayIndex == day.id,
+                                focusCanvas: { canvasFocused = true }
                             )
                             .id("day_\(day.id)")
                         }
@@ -32,7 +52,53 @@ struct CanvasView: View {
                 }
             }
         }
+        .focusable(true)
+        .focused($canvasFocused)
+        .focusedValue(
+            \.segmentActions,
+            canvasFocused
+                ? SegmentActions(
+                    edit: { appState.editSelectedSegment(in: plan) },
+                    preview: { appState.previewSelectedSegment(in: plan) }
+                )
+                : nil
+        )
+        .onAppear { canvasFocused = true }
+        .onMoveCommand { direction in
+            guard canvasFocused else { return }
+            switch direction {
+            case .up:
+                appState.selectAdjacentSegment(delta: -1, in: plan)
+            case .down:
+                appState.selectAdjacentSegment(delta: 1, in: plan)
+            default:
+                break
+            }
+        }
         .background(Color(NSColor.textBackgroundColor))
+    }
+
+    private var header: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Schedule")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                Text("Use ⇧⌘N to add a day")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+
+            Button {
+                canvasFocused = true
+                appState.addDay()
+            } label: {
+                Label("Add Day", systemImage: "calendar.badge.plus")
+            }
+            .keyboardShortcut("N", modifiers: [.command, .shift])
+        }
     }
 }
 
@@ -74,6 +140,7 @@ struct DayView: View {
     @ObservedObject var plan: PlanDocument
     let day: DayDisplay
     let isSelected: Bool
+    let focusCanvas: () -> Void
     @EnvironmentObject var appState: AppState
 
     var body: some View {
@@ -100,7 +167,10 @@ struct DayView: View {
                         .foregroundColor(.secondary)
                 }
 
-                Button(action: { appState.addSegment(to: day.id) }) {
+                Button(action: {
+                    focusCanvas()
+                    appState.addSegment(to: day.id)
+                }) {
                     Label("Add Segment", systemImage: "plus.circle")
                 }
                 .buttonStyle(.borderless)
@@ -111,6 +181,7 @@ struct DayView: View {
             .background(isSelected ? Color.accentColor.opacity(0.1) : Color.clear)
             .cornerRadius(8)
             .onTapGesture {
+                focusCanvas()
                 appState.selectDay(day.id)
             }
 
@@ -118,6 +189,7 @@ struct DayView: View {
             let segments = day.segments()
             if segments.isEmpty {
                 Button {
+                    focusCanvas()
                     appState.addSegment(to: day.id)
                 } label: {
                     Label("Add the first segment", systemImage: "plus.circle")
@@ -131,7 +203,8 @@ struct DayView: View {
                         plan: plan,
                         segment: segment,
                         isSelected: appState.selectedSegmentIds.contains(segment.id),
-                        isRecent: appState.recentlyAddedSegmentID == segment.id
+                        isRecent: appState.recentlyAddedSegmentID == segment.id,
+                        focusCanvas: focusCanvas
                     )
                     .id(segment.id)
                 }
@@ -146,6 +219,7 @@ struct SegmentRowView: View {
     let segment: SegmentDisplay
     let isSelected: Bool
     let isRecent: Bool
+    let focusCanvas: () -> Void
     @EnvironmentObject var appState: AppState
 
     var body: some View {
@@ -231,12 +305,14 @@ struct SegmentRowView: View {
     }
 
     private func openEditor() {
+        focusCanvas()
         if let json = segment.toJSON() {
             appState.editSegmentJSON(json, at: segment.index, in: segment.dayIndex)
         }
     }
 
     private func handleSelection() {
+        focusCanvas()
         let modifiers = NSEvent.modifierFlags
         if modifiers.contains(.command) {
             appState.selectSegment(segment, in: plan, multiSelect: true)

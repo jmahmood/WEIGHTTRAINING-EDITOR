@@ -4,7 +4,16 @@ import Foundation
 
 /// JSON-based plan document - stores plan as raw JSON string
 /// This avoids the complexity of modeling the entire Rust structure in Swift
+enum PlanMutationError: Error {
+    case invalidStructure
+    case serializationFailed
+}
+
 class PlanDocument: ObservableObject {
+    private enum Defaults {
+        static let restSeconds = 90
+        static let rpe: Double = 8.5
+    }
     @Published var planJSON: String
     @Published var isDirty = false
 
@@ -123,6 +132,61 @@ class PlanDocument: ObservableObject {
         updatePlan(updatedJSON)
     }
 
+    /// Duplicate a segment by copying its JSON within the same day
+    func duplicateSegment(at segmentIndex: Int, inDayAt dayIndex: Int) throws {
+        try mutatePlanDictionary { root in
+            guard var schedule = root["schedule"] as? [[String: Any]], dayIndex < schedule.count else {
+                throw PlanMutationError.invalidStructure
+            }
+
+            var day = schedule[dayIndex]
+            guard var segments = day["segments"] as? [[String: Any]], segmentIndex < segments.count else {
+                throw PlanMutationError.invalidStructure
+            }
+
+            let segment = segments[segmentIndex]
+            let insertIndex = min(segmentIndex + 1, segments.count)
+            segments.insert(segment, at: insertIndex)
+
+            day["segments"] = segments
+            schedule[dayIndex] = day
+            root["schedule"] = schedule
+        }
+    }
+
+    /// Move a segment within a day
+    func moveSegment(inDayAt dayIndex: Int, from fromIndex: Int, to toIndex: Int) throws {
+        guard fromIndex != toIndex else { return }
+        try mutatePlanDictionary { root in
+            guard var schedule = root["schedule"] as? [[String: Any]], dayIndex < schedule.count else {
+                throw PlanMutationError.invalidStructure
+            }
+
+            var day = schedule[dayIndex]
+            guard var segments = day["segments"] as? [[String: Any]],
+                  fromIndex < segments.count,
+                  toIndex >= 0, toIndex <= segments.count else {
+                throw PlanMutationError.invalidStructure
+            }
+
+            let segment = segments.remove(at: fromIndex)
+            let destination = min(max(toIndex, 0), segments.count)
+            segments.insert(segment, at: destination)
+
+            day["segments"] = segments
+            schedule[dayIndex] = day
+            root["schedule"] = schedule
+        }
+    }
+
+    /// Convenience accessor for a display segment
+    func segmentDisplay(dayIndex: Int, segmentIndex: Int) -> SegmentDisplay? {
+        guard days.indices.contains(dayIndex) else { return nil }
+        let segments = days[dayIndex].segments()
+        guard segments.indices.contains(segmentIndex) else { return nil }
+        return segments[segmentIndex]
+    }
+
     /// Add an exercise entry to the dictionary
     func addExercise(code: String, name: String) throws {
         let updatedJSON = try RustBridge.addExercise(code: code, name: name, to: planJSON)
@@ -148,6 +212,102 @@ class PlanDocument: ObservableObject {
     }
 
     // MARK: - Helpers
+
+    private func mutatePlanDictionary(_ mutate: (inout [String: Any]) throws -> Void) throws {
+        guard var root = try JSONSerialization.jsonObject(with: Data(planJSON.utf8)) as? [String: Any] else {
+            throw PlanMutationError.serializationFailed
+        }
+
+        try mutate(&root)
+
+        let updatedData = try JSONSerialization.data(withJSONObject: root, options: [.sortedKeys])
+        guard let updatedJSON = String(data: updatedData, encoding: .utf8) else {
+            throw PlanMutationError.serializationFailed
+        }
+
+        updatePlan(updatedJSON)
+    }
+
+    private static func normalize(json: String) -> String {
+        guard var root = try? JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any] else {
+            return json
+        }
+
+        var changed = false
+
+        if var schedule = root["schedule"] as? [[String: Any]] {
+            for dayIndex in schedule.indices {
+                if var segments = schedule[dayIndex]["segments"] as? [[String: Any]] {
+                    for segIndex in segments.indices {
+                        var segment = segments[segIndex]
+                        guard let type = segment["type"] as? String else { continue }
+
+                        func ensureRestAndRPE() {
+                            if segment["rest_sec"] == nil {
+                                segment["rest_sec"] = Defaults.restSeconds
+                                changed = true
+                            }
+                            if segment["rpe"] == nil {
+                                segment["rpe"] = Defaults.rpe
+                                changed = true
+                            }
+                        }
+
+                        switch type {
+                        case "straight", "rpe", "percentage":
+                            ensureRestAndRPE()
+                        case "scheme":
+                            if var entries = segment["sets"] as? [[String: Any]] {
+                                for idx in entries.indices {
+                                    var entry = entries[idx]
+                                    if entry["rest_sec"] == nil {
+                                        entry["rest_sec"] = Defaults.restSeconds
+                                        changed = true
+                                    }
+                                    if entry["rpe"] == nil {
+                                        entry["rpe"] = Defaults.rpe
+                                        changed = true
+                                    }
+                                    entries[idx] = entry
+                                }
+                                segment["sets"] = entries
+                            }
+                        case "superset", "circuit":
+                            if var items = segment["items"] as? [[String: Any]] {
+                                for idx in items.indices {
+                                    var item = items[idx]
+                                    if item["rest_sec"] == nil {
+                                        item["rest_sec"] = 0
+                                        changed = true
+                                    }
+                                    if item["rpe"] == nil {
+                                        item["rpe"] = Defaults.rpe
+                                        changed = true
+                                    }
+                                    items[idx] = item
+                                }
+                                segment["items"] = items
+                            }
+                        default:
+                            break
+                        }
+
+                        segments[segIndex] = segment
+                    }
+                    schedule[dayIndex]["segments"] = segments
+                }
+            }
+            root["schedule"] = schedule
+        }
+
+        guard changed,
+              let data = try? JSONSerialization.data(withJSONObject: root, options: [.sortedKeys]),
+              let string = String(data: data, encoding: .utf8) else {
+            return json
+        }
+
+        return string
+    }
 
     private static func fallbackEmptyPlan() -> String {
         """

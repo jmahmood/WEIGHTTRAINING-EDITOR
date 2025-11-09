@@ -17,6 +17,13 @@ class AppState: ObservableObject {
     @Published var showPlanEditor = false
     @Published var showGroupsEditor = false
     @Published var showExerciseSearch = false
+    @Published var focusedGroupName: String?
+    enum SidebarTab {
+        case exercises
+        case groups
+    }
+    @Published var sidebarTab: SidebarTab = .exercises
+    @Published var previewToken: SegmentPreviewToken?
 
     // Editing State
     @Published var editingSegmentJSON: String?
@@ -69,14 +76,29 @@ class AppState: ObservableObject {
             selectedSegmentIds.formUnion(rangeIDs)
             lastSelectedCoordinate = (segment.dayIndex, segment.index)
         } else {
-            selectedSegmentIds = [identifier]
-            lastSelectedCoordinate = (segment.dayIndex, segment.index)
+            selectIdentifier(identifier)
         }
     }
 
     func clearSelection() {
         selectedSegmentIds.removeAll()
         lastSelectedCoordinate = nil
+    }
+
+    func selectionCoordinates() -> [SegmentCoordinate] {
+        selectedSegmentIds.compactMap { SegmentCoordinate(identifier: $0) }
+    }
+
+    func primarySelectionCoordinate() -> SegmentCoordinate? {
+        selectionCoordinates().sorted().first
+    }
+
+    func selectIdentifier(_ identifier: String) {
+        selectedSegmentIds = [identifier]
+        if let coord = SegmentCoordinate(identifier: identifier) {
+            selectedDayIndex = coord.day
+            lastSelectedCoordinate = (coord.day, coord.segment)
+        }
     }
 
     // MARK: - Editing Actions
@@ -94,6 +116,10 @@ class AppState: ObservableObject {
         editingSegmentIndex = nil
         editingDayIndex = dayIndex
         showSegmentEditor = true
+    }
+
+    func addDay() {
+        showDayEditor = true
     }
 
     // MARK: - Undo/Redo
@@ -161,5 +187,149 @@ class AppState: ObservableObject {
         let defaults = UserDefaults.standard
         defaults.set(autosaveEnabled, forKey: "autosaveEnabled")
         defaults.set(autosaveInterval, forKey: "autosaveInterval")
+    }
+
+    // MARK: - Segment Operations
+
+    func duplicateSelectedSegment(in plan: PlanDocument) {
+        guard let coordinate = primarySelectionCoordinate() else { return }
+        pushUndo(plan.planJSON)
+        do {
+            try plan.duplicateSegment(at: coordinate.segment, inDayAt: coordinate.day)
+            let newIndex = coordinate.segment + 1
+            selectIdentifier("\(coordinate.day)_\(newIndex)")
+            markRecentlyAddedSegment(dayIndex: coordinate.day, segmentIndex: newIndex)
+        } catch {
+            print("Failed to duplicate segment: \(error)")
+        }
+    }
+
+    func deleteSelectedSegments(in plan: PlanDocument) {
+        let coordinates = selectionCoordinates().sorted(by: >)
+        guard !coordinates.isEmpty else { return }
+        pushUndo(plan.planJSON)
+        for coordinate in coordinates {
+            do {
+                try plan.removeSegment(at: coordinate.segment, fromDayAt: coordinate.day)
+            } catch {
+                print("Failed to delete segment: \(error)")
+            }
+        }
+        clearSelection()
+    }
+
+    func moveSelectedSegment(up: Bool, in plan: PlanDocument) {
+        guard let coordinate = primarySelectionCoordinate() else { return }
+        let segmentsCount = plan.days.indices.contains(coordinate.day) ? plan.days[coordinate.day].segmentCount : 0
+        guard segmentsCount > 0 else { return }
+
+        let targetIndex = up ? coordinate.segment - 1 : coordinate.segment + 1
+        guard targetIndex >= 0, targetIndex < segmentsCount else { return }
+
+        pushUndo(plan.planJSON)
+        do {
+            try plan.moveSegment(inDayAt: coordinate.day, from: coordinate.segment, to: targetIndex)
+            selectIdentifier("\(coordinate.day)_\(targetIndex)")
+        } catch {
+            print("Failed to move segment: \(error)")
+        }
+    }
+
+    func previewSelectedSegment(in plan: PlanDocument) {
+        guard let coordinate = primarySelectionCoordinate() else { return }
+        previewToken = SegmentPreviewToken(dayIndex: coordinate.day, segmentIndex: coordinate.segment)
+    }
+
+    func focusGroup(named name: String) {
+        focusedGroupName = name
+        sidebarTab = .groups
+    }
+
+    func canDuplicateSelection() -> Bool {
+        selectedSegmentIds.count == 1
+    }
+
+    func hasSelection() -> Bool {
+        !selectedSegmentIds.isEmpty
+    }
+
+    func canMoveSelection(up: Bool, in plan: PlanDocument) -> Bool {
+        guard let coordinate = primarySelectionCoordinate(),
+              plan.days.indices.contains(coordinate.day) else { return false }
+        let count = plan.days[coordinate.day].segmentCount
+        if up {
+            return coordinate.segment > 0
+        } else {
+            return coordinate.segment < count - 1
+        }
+    }
+
+    func canPreviewSelection() -> Bool {
+        primarySelectionCoordinate() != nil
+    }
+
+    func selectAdjacentSegment(delta: Int, in plan: PlanDocument) {
+        let ordered = orderedCoordinates(in: plan)
+        guard !ordered.isEmpty else { return }
+
+        if let current = primarySelectionCoordinate(),
+           let idx = ordered.firstIndex(of: current) {
+            let newIndex = max(0, min(ordered.count - 1, idx + delta))
+            selectIdentifier(ordered[newIndex].identifier)
+        } else {
+            let target = delta >= 0 ? 0 : ordered.count - 1
+            selectIdentifier(ordered[target].identifier)
+        }
+    }
+
+    func editSelectedSegment(in plan: PlanDocument) {
+        guard let coordinate = primarySelectionCoordinate(),
+              let segment = plan.segmentDisplay(dayIndex: coordinate.day, segmentIndex: coordinate.segment),
+              let json = segment.toJSON() else { return }
+        editSegmentJSON(json, at: coordinate.segment, in: coordinate.day)
+    }
+
+    private func orderedCoordinates(in plan: PlanDocument) -> [SegmentCoordinate] {
+        plan.days.enumerated().flatMap { dayIndex, day in
+            day.segments().enumerated().map { segmentIndex, _ in
+                SegmentCoordinate(day: dayIndex, segment: segmentIndex)
+            }
+        }
+    }
+
+    struct SegmentPreviewToken: Identifiable {
+        let id = UUID()
+        let dayIndex: Int
+        let segmentIndex: Int
+    }
+
+    struct SegmentCoordinate: Comparable {
+        let day: Int
+        let segment: Int
+
+        init(day: Int, segment: Int) {
+            self.day = day
+            self.segment = segment
+        }
+
+        init?(identifier: String) {
+            let components = identifier.split(separator: "_")
+            guard components.count == 2,
+                  let day = Int(components[0]),
+                  let segment = Int(components[1]) else {
+                return nil
+            }
+            self.day = day
+            self.segment = segment
+        }
+
+        var identifier: String { "\(day)_\(segment)" }
+
+        static func < (lhs: SegmentCoordinate, rhs: SegmentCoordinate) -> Bool {
+            if lhs.day == rhs.day {
+                return lhs.segment < rhs.segment
+            }
+            return lhs.day < rhs.day
+        }
     }
 }

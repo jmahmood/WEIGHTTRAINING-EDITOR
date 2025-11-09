@@ -26,13 +26,15 @@ struct SegmentEditorView: View {
     @State private var reps = 8
     @State private var repsMin = 10
     @State private var repsMax = 12
+    @State private var straightRestSec = 120
+    @State private var straightRpe = 8.5
     @State private var altGroup: String?
     @State private var commentText = ""
 
     // Superset/Circuit fields
     @State private var label = ""
     @State private var rounds = 2
-    @State private var restSec = 0
+    @State private var supersetRestSec = 60
     @State private var restBetweenRoundsSec = 60
     @State private var supersetItems: [[String: Any]] = []
     @State private var showingSupersetItemEditor = false
@@ -65,24 +67,24 @@ struct SegmentEditorView: View {
 
             Divider()
 
-            // Form based on segment type
-            Form {
-                switch selectedType {
-                case "straight":
-                    straightSegmentForm
-                case "superset", "circuit":
-                    supersetSegmentForm
-                case "scheme":
-                    schemeSegmentForm
-                case "comment":
-                    commentSegmentForm
-                default:
-                    Text("Editor for \(selectedType) segments coming soon...")
-                        .foregroundColor(.secondary)
+            ScrollView {
+                Form {
+                    switch selectedType {
+                    case "straight":
+                        straightSegmentForm
+                    case "superset", "circuit":
+                        supersetSegmentForm
+                    case "scheme":
+                        schemeSegmentForm
+                    case "comment":
+                        commentSegmentForm
+                    default:
+                        Text("Editor for \(selectedType) segments coming soon...")
+                            .foregroundColor(.secondary)
+                    }
                 }
+                .frame(maxWidth: .infinity)
             }
-
-            Spacer()
 
             // Action buttons
             HStack {
@@ -94,14 +96,21 @@ struct SegmentEditorView: View {
                 Spacer()
 
                 Button("Save") {
-                    saveSegment()
+                    saveSegment(addAnother: false)
                 }
                 .keyboardShortcut(.return)
                 .buttonStyle(.borderedProminent)
+
+                if segmentJSON == nil {
+                    Button("Save & Add Another") {
+                        saveSegment(addAnother: true)
+                    }
+                    .keyboardShortcut(.return, modifiers: [.shift])
+                }
             }
         }
         .padding()
-        .frame(width: 500, height: 600)
+        .frame(width: 520, height: 600)
         .onAppear {
             loadSegment()
         }
@@ -131,6 +140,16 @@ struct SegmentEditorView: View {
                 Stepper("Max: \(repsMax)", value: $repsMax, in: 1...100)
             } else {
                 Stepper("Reps: \(reps)", value: $reps, in: 1...100)
+            }
+        }
+
+        Section("Rest & Effort") {
+            Stepper("Rest Seconds: \(straightRestSec)", value: $straightRestSec, in: 30...600, step: 15)
+            HStack {
+                Text("RPE:")
+                Slider(value: $straightRpe, in: 6...10, step: 0.5)
+                Text(String(format: "%.1f", straightRpe))
+                    .frame(width: 40)
             }
         }
     }
@@ -249,7 +268,7 @@ struct SegmentEditorView: View {
         Section("Superset/Circuit Info") {
             TextField("Label (optional)", text: $label)
             Stepper("Rounds: \(rounds)", value: $rounds, in: 1...10)
-            Stepper("Rest between exercises: \(restSec)s", value: $restSec, in: 0...180, step: 15)
+            Stepper("Rest between exercises: \(supersetRestSec)s", value: $supersetRestSec, in: 0...180, step: 15)
             Stepper("Rest between rounds: \(restBetweenRoundsSec)s", value: $restBetweenRoundsSec, in: 0...600, step: 30)
         }
 
@@ -355,6 +374,8 @@ struct SegmentEditorView: View {
         case "straight", "rpe", "percentage":
             exerciseCode = dict["ex"] as? String ?? ""
             sets = dict["sets"] as? Int ?? 3
+            straightRestSec = dict["rest_sec"] as? Int ?? 120
+            straightRpe = dict["rpe"] as? Double ?? 8.5
 
             // Load exercise name from dictionary
             if !exerciseCode.isEmpty {
@@ -379,12 +400,21 @@ struct SegmentEditorView: View {
         case "superset", "circuit":
             label = dict["label"] as? String ?? ""
             rounds = dict["rounds"] as? Int ?? 2
-            restSec = dict["rest_sec"] as? Int ?? 0
+            supersetRestSec = dict["rest_sec"] as? Int ?? 0
             restBetweenRoundsSec = dict["rest_between_rounds_sec"] as? Int ?? 60
 
             // Load items
             if let items = dict["items"] as? [[String: Any]] {
-                supersetItems = items
+                supersetItems = items.map { item in
+                    var entry = item
+                    if entry["rest_sec"] == nil {
+                        entry["rest_sec"] = supersetRestSec
+                    }
+                    if entry["rpe"] == nil {
+                        entry["rpe"] = straightRpe
+                    }
+                    return entry
+                }
             }
 
         case "scheme":
@@ -446,13 +476,15 @@ struct SegmentEditorView: View {
         }
     }
 
-    private func saveSegment() {
+    private func saveSegment(addAnother: Bool) {
         var segmentDict: [String: Any] = ["type": selectedType]
 
         switch selectedType {
         case "straight":
             segmentDict["ex"] = exerciseCode
             segmentDict["sets"] = sets
+            segmentDict["rest_sec"] = max(straightRestSec, 30)
+            segmentDict["rpe"] = straightRpe
 
             // Add alt_group if selected
             if let altGroup = altGroup {
@@ -473,9 +505,16 @@ struct SegmentEditorView: View {
                 segmentDict["label"] = label
             }
             segmentDict["rounds"] = rounds
-            segmentDict["rest_sec"] = restSec
-            segmentDict["rest_between_rounds_sec"] = restBetweenRoundsSec
-            segmentDict["items"] = supersetItems
+            segmentDict["rest_sec"] = max(supersetRestSec, 0)
+            segmentDict["rest_between_rounds_sec"] = max(restBetweenRoundsSec, 30)
+            segmentDict["items"] = supersetItems.map { item in
+                var entry = item
+                if entry["sets"] == nil { entry["sets"] = 1 }
+                if entry["reps"] == nil { entry["reps"] = useRepsRange ? ["min": repsMin, "max": repsMax] : reps }
+                if entry["rest_sec"] == nil { entry["rest_sec"] = max(supersetRestSec, 0) }
+                if entry["rpe"] == nil { entry["rpe"] = straightRpe }
+                return entry
+            }
 
         case "scheme":
             segmentDict["ex"] = exerciseCode
@@ -519,13 +558,17 @@ struct SegmentEditorView: View {
                 }
 
                 // Add rpe if set
-                if let rpe = schemeSet.rpe {
-                    setDict["rpe"] = rpe
+                if let rpeValue = schemeSet.rpe {
+                    setDict["rpe"] = rpeValue
+                } else {
+                    setDict["rpe"] = straightRpe
                 }
 
                 // Add rest_sec if set
                 if let restSec = schemeSet.restSec {
                     setDict["rest_sec"] = restSec
+                } else {
+                    setDict["rest_sec"] = max(straightRestSec, 30)
                 }
 
                 setsArray.append(setDict)
@@ -548,10 +591,36 @@ struct SegmentEditorView: View {
         if let data = try? JSONSerialization.data(withJSONObject: segmentDict, options: .prettyPrinted),
            let json = String(data: data, encoding: .utf8) {
             onSave(json)
-            dismiss()
+            if addAnother && segmentJSON == nil {
+                resetForm()
+            } else {
+                dismiss()
+            }
         } else {
             print("Failed to create segment JSON")
         }
+    }
+
+    private func resetForm() {
+        exerciseCode = ""
+        exerciseName = ""
+        sets = 3
+        useRepsRange = false
+        reps = 8
+        repsMin = 10
+        repsMax = 12
+        straightRestSec = 120
+        straightRpe = 8.5
+        altGroup = nil
+        commentText = ""
+        label = ""
+        rounds = 2
+        supersetRestSec = 60
+        restBetweenRoundsSec = 60
+        supersetItems = []
+        schemeSets = []
+        schemeAltGroup = nil
+        selectedType = "straight"
     }
 }
 
