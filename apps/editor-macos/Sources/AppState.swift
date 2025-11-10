@@ -17,6 +17,9 @@ class AppState: ObservableObject {
     @Published var showPlanEditor = false
     @Published var showGroupsEditor = false
     @Published var showExerciseSearch = false
+
+    // Inline editing state
+    @Published var inlineEditingSegmentId: String?
     @Published var focusedGroupName: String?
     enum SidebarTab {
         case exercises
@@ -37,9 +40,9 @@ class AppState: ObservableObject {
     @Published var autosaveEnabled = true
     @Published var autosaveInterval: TimeInterval = 5.0
 
-    // Undo/Redo (stores JSON snapshots)
-    private var undoStack: [String] = []
-    private var redoStack: [String] = []
+    // Undo/Redo (stores JSON snapshots with action labels)
+    private var undoStack: [(json: String, label: String)] = []
+    private var redoStack: [(json: String, label: String)] = []
     private var lastSelectedCoordinate: (day: Int, index: Int)?
 
     init() {
@@ -124,33 +127,21 @@ class AppState: ObservableObject {
 
     // MARK: - Undo/Redo
 
-    func pushUndo(_ planJSON: String) {
-        undoStack.append(planJSON)
+    func pushUndo(_ planJSON: String, label: String = "Change") {
+        undoStack.append((json: planJSON, label: label))
         redoStack.removeAll()
-    }
-
-    func undo() -> String? {
-        guard let planJSON = undoStack.popLast() else { return nil }
-        redoStack.append(planJSON)
-        return planJSON
-    }
-
-    func redo() -> String? {
-        guard let planJSON = redoStack.popLast() else { return nil }
-        undoStack.append(planJSON)
-        return planJSON
     }
 
     func performUndo(on plan: PlanDocument) {
         guard let previous = undoStack.popLast() else { return }
-        redoStack.append(plan.planJSON)
-        plan.updatePlan(previous)
+        redoStack.append((json: plan.planJSON, label: previous.label))
+        plan.updatePlan(previous.json)
     }
 
     func performRedo(on plan: PlanDocument) {
-        guard let redoJSON = redoStack.popLast() else { return }
-        undoStack.append(plan.planJSON)
-        plan.updatePlan(redoJSON)
+        guard let next = redoStack.popLast() else { return }
+        undoStack.append((json: plan.planJSON, label: next.label))
+        plan.updatePlan(next.json)
     }
 
     var canUndo: Bool {
@@ -159,6 +150,14 @@ class AppState: ObservableObject {
 
     var canRedo: Bool {
         !redoStack.isEmpty
+    }
+
+    var undoActionName: String? {
+        undoStack.last?.label
+    }
+
+    var redoActionName: String? {
+        redoStack.last?.label
     }
 
     func markRecentlyAddedSegment(dayIndex: Int, segmentIndex: Int) {
@@ -193,7 +192,7 @@ class AppState: ObservableObject {
 
     func duplicateSelectedSegment(in plan: PlanDocument) {
         guard let coordinate = primarySelectionCoordinate() else { return }
-        pushUndo(plan.planJSON)
+        pushUndo(plan.planJSON, label: "Duplicate Segment")
         do {
             try plan.duplicateSegment(at: coordinate.segment, inDayAt: coordinate.day)
             let newIndex = coordinate.segment + 1
@@ -207,7 +206,8 @@ class AppState: ObservableObject {
     func deleteSelectedSegments(in plan: PlanDocument) {
         let coordinates = selectionCoordinates().sorted(by: >)
         guard !coordinates.isEmpty else { return }
-        pushUndo(plan.planJSON)
+        let label = coordinates.count == 1 ? "Delete Segment" : "Delete \(coordinates.count) Segments"
+        pushUndo(plan.planJSON, label: label)
         for coordinate in coordinates {
             do {
                 try plan.removeSegment(at: coordinate.segment, fromDayAt: coordinate.day)
@@ -226,7 +226,8 @@ class AppState: ObservableObject {
         let targetIndex = up ? coordinate.segment - 1 : coordinate.segment + 1
         guard targetIndex >= 0, targetIndex < segmentsCount else { return }
 
-        pushUndo(plan.planJSON)
+        let label = up ? "Move Segment Up" : "Move Segment Down"
+        pushUndo(plan.planJSON, label: label)
         do {
             try plan.moveSegment(inDayAt: coordinate.day, from: coordinate.segment, to: targetIndex)
             selectIdentifier("\(coordinate.day)_\(targetIndex)")

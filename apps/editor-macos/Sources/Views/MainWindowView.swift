@@ -93,9 +93,9 @@ struct MainWindowView: View {
         guard let dayIndex = appState.editingDayIndex else { return }
 
         do {
-            appState.pushUndo(document.planDocument.planJSON)
             if let segmentIndex = appState.editingSegmentIndex {
                 // Update existing segment
+                appState.pushUndo(document.planDocument.planJSON, label: "Edit Segment")
                 try document.planDocument.updateSegment(
                     segmentJSON,
                     at: segmentIndex,
@@ -103,6 +103,7 @@ struct MainWindowView: View {
                 )
             } else {
                 // Add new segment
+                appState.pushUndo(document.planDocument.planJSON, label: "Add Segment")
                 try document.planDocument.addSegment(segmentJSON, toDayAt: dayIndex)
                 if document.planDocument.days.indices.contains(dayIndex) {
                     let newIndex = document.planDocument.days[dayIndex].segmentCount - 1

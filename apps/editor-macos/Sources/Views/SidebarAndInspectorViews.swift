@@ -42,11 +42,11 @@ struct ExerciseSidebarView: View {
                 groupName: groupIdentifier.name,
                 exercises: plan.groups[groupIdentifier.name] ?? [],
                 onSave: { updated in
-                    appState.pushUndo(plan.planJSON)
+                    appState.pushUndo(plan.planJSON, label: "Edit Group")
                     updateGroup(groupIdentifier.name, exercises: updated)
                 },
                 onDelete: {
-                    appState.pushUndo(plan.planJSON)
+                    appState.pushUndo(plan.planJSON, label: "Delete Group")
                     deleteGroup(groupIdentifier.name)
                 }
             )
@@ -100,7 +100,7 @@ struct ExerciseSidebarView: View {
                 .buttonStyle(.bordered)
                 .sheet(isPresented: $showingAddGroup) {
                     AddNewGroupDialog(plan: plan) { name in
-                        appState.pushUndo(plan.planJSON)
+                        appState.pushUndo(plan.planJSON, label: "Add Group")
                         addNewGroup(name)
                         showingAddGroup = false
                     }
@@ -150,7 +150,7 @@ struct ExerciseSidebarView: View {
                             selectedGroupForEdit = name
                         }
                         Button("Delete Group", role: .destructive) {
-                            appState.pushUndo(plan.planJSON)
+                            appState.pushUndo(plan.planJSON, label: "Delete Group")
                             deleteGroup(name)
                         }
                     }
@@ -296,13 +296,13 @@ private struct GroupEditContainer: View {
             groupName: groupName,
             exercises: exercises,
             onSave: { updated in
-                appState.pushUndo(plan.planJSON)
+                appState.pushUndo(plan.planJSON, label: "Edit Group")
                 if let updatedJSON = try? RustBridge.addGroup(name: groupName, exercises: updated, to: plan.planJSON) {
                     plan.updatePlan(updatedJSON)
                 }
             },
             onDelete: {
-                appState.pushUndo(plan.planJSON)
+                appState.pushUndo(plan.planJSON, label: "Delete Group")
                 if let updatedJSON = try? RustBridge.removeGroup(name: groupName, from: plan.planJSON) {
                     plan.updatePlan(updatedJSON)
                 }
@@ -364,25 +364,50 @@ struct GroupSearchEmptyState: View {
 struct SegmentDetailView: View {
     let segment: SegmentDisplay
     @ObservedObject var plan: PlanDocument
+    @EnvironmentObject var appState: AppState
 
     var body: some View {
-        switch segment.kind {
-        case .straight, .rpe, .percentage, .amrap, .time:
-            InspectorKeyValueList(items: segment.basicInspectorItems(plan: plan))
-        case .superset, .circuit:
-            GroupInspectorDetail(metadata: segment.groupMetadataItems(),
-                                 exercises: segment.groupExercises(plan: plan))
-        case .scheme:
-            SchemeInspectorDetail(exerciseName: segment.primaryTitle(with: plan),
-                                  code: segment.exerciseCode ?? "",
-                                  sets: segment.schemeSetDetails())
-        case .comment:
-            CommentInspectorDetail(text: segment.commentText ?? "No comment provided.")
-        case .choose:
-            ChooseInspectorDetail(pick: segment.intValue("pick"),
-                                  options: segment.choiceOptions(plan: plan))
-        default:
-            GenericInspectorDetail(dictionary: segment.segmentDict)
+        VStack(alignment: .leading, spacing: 16) {
+            switch segment.kind {
+            case .straight, .rpe, .percentage, .amrap, .time:
+                InlineSegmentEditorV2(plan: plan, segment: segment)
+            case .superset, .circuit:
+                VStack(alignment: .leading, spacing: 12) {
+                    GroupInspectorDetail(metadata: segment.groupMetadataItems(),
+                                         exercises: segment.groupExercises(plan: plan))
+                    Button("Edit in Dialog") {
+                        if let json = segment.toJSON() {
+                            appState.editSegmentJSON(json, at: segment.index, in: segment.dayIndex)
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                }
+            case .scheme:
+                InlineSchemeEditor(plan: plan, segment: segment)
+            case .comment:
+                InlineCommentEditor(plan: plan, segment: segment)
+            case .choose:
+                VStack(alignment: .leading, spacing: 12) {
+                    ChooseInspectorDetail(pick: segment.intValue("pick"),
+                                          options: segment.choiceOptions(plan: plan))
+                    Button("Edit in Dialog") {
+                        if let json = segment.toJSON() {
+                            appState.editSegmentJSON(json, at: segment.index, in: segment.dayIndex)
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                }
+            default:
+                VStack(alignment: .leading, spacing: 12) {
+                    GenericInspectorDetail(dictionary: segment.segmentDict)
+                    Button("Edit in Dialog") {
+                        if let json = segment.toJSON() {
+                            appState.editSegmentJSON(json, at: segment.index, in: segment.dayIndex)
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
         }
     }
 }
@@ -782,7 +807,7 @@ struct NewExerciseForm: View {
         }
 
         do {
-            appState.pushUndo(plan.planJSON)
+            appState.pushUndo(plan.planJSON, label: "Add Exercise")
             try plan.addExercise(code: code, name: nameText)
             successMessage = "Added \(nameText)"
             errorMessage = nil

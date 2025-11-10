@@ -20,7 +20,7 @@ struct WeightliftingEditorApp: App {
             }
 
             CommandGroup(replacing: .undoRedo) {
-                Button("Undo") {
+                Button(appState.undoActionName.map { "Undo \($0)" } ?? "Undo") {
                     if let plan = appState.activePlan {
                         appState.performUndo(on: plan)
                     }
@@ -28,7 +28,7 @@ struct WeightliftingEditorApp: App {
                 .keyboardShortcut("z", modifiers: .command)
                 .disabled(!appState.canUndo)
 
-                Button("Redo") {
+                Button(appState.redoActionName.map { "Redo \($0)" } ?? "Redo") {
                     if let plan = appState.activePlan {
                         appState.performRedo(on: plan)
                     }
@@ -87,6 +87,9 @@ struct WeightliftingEditorApp: App {
             CommandGroup(replacing: .help) {
                 Button("Weightlifting Editor Help") {
                     // Open help
+                }
+                Button("View Error Log...") {
+                    NSWorkspace.shared.selectFile(ErrorLogger.shared.getLogFilePath(), inFileViewerRootedAtPath: "")
                 }
             }
         }

@@ -297,7 +297,7 @@ struct SegmentRowView: View {
     private func deleteSegment() {
         guard let plan = segment.parent else { return }
         do {
-            appState.pushUndo(plan.planJSON)
+            appState.pushUndo(plan.planJSON, label: "Delete Segment")
             try plan.removeSegment(at: segment.index, fromDayAt: segment.dayIndex)
         } catch {
             print("Failed to delete segment: \(error)")
