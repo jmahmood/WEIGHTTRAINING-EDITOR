@@ -9,10 +9,24 @@ struct SegmentActionsKey: FocusedValueKey {
     typealias Value = SegmentActions
 }
 
+struct ColumnNavigationActions {
+    let focusInspector: () -> Void
+    let focusCanvas: () -> Void
+}
+
+struct ColumnNavigationActionsKey: FocusedValueKey {
+    typealias Value = ColumnNavigationActions
+}
+
 extension FocusedValues {
     var segmentActions: SegmentActions? {
         get { self[SegmentActionsKey.self] }
         set { self[SegmentActionsKey.self] = newValue }
+    }
+
+    var columnNavigation: ColumnNavigationActions? {
+        get { self[ColumnNavigationActionsKey.self] }
+        set { self[ColumnNavigationActionsKey.self] = newValue }
     }
 }
 
@@ -70,7 +84,15 @@ struct CanvasView: View {
                 )
                 : nil
         )
-        .onAppear { canvasFocused = true }
+        .onAppear {
+            canvasFocused = true
+        }
+        .onChange(of: appState.shouldFocusCanvas) { shouldFocus in
+            if shouldFocus {
+                canvasFocused = true
+                appState.shouldFocusCanvas = false
+            }
+        }
         .onMoveCommand { direction in
             guard canvasFocused else { return }
             switch direction {

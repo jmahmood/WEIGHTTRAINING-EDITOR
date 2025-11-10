@@ -9,22 +9,41 @@ struct MainWindowView: View {
     private let sidebarWidth: CGFloat = 260
 
     var body: some View {
-        NavigationSplitView(columnVisibility: $splitVisibility) {
-            ExerciseSidebarView(plan: document.planDocument)
-                .environmentObject(appState)
-                .frame(minWidth: sidebarWidth, maxWidth: sidebarWidth)
-                .navigationSplitViewColumnWidth(sidebarWidth)
-        } content: {
-            CanvasView(plan: document.planDocument)
-                .environmentObject(appState)
-                .frame(minWidth: 520)
-                .layoutPriority(1)
-                .navigationSplitViewColumnWidth(min: 520, ideal: 0, max: .infinity)
-        } detail: {
-            InspectorView(plan: document.planDocument)
-                .environmentObject(appState)
-                .frame(minWidth: 320, idealWidth: 360, maxWidth: 440)
-                .navigationSplitViewColumnWidth(min: 320, ideal: 360, max: 440)
+        ZStack {
+            NavigationSplitView(columnVisibility: $splitVisibility) {
+                ExerciseSidebarView(plan: document.planDocument)
+                    .environmentObject(appState)
+                    .frame(minWidth: sidebarWidth, maxWidth: sidebarWidth)
+                    .navigationSplitViewColumnWidth(sidebarWidth)
+            } content: {
+                CanvasView(plan: document.planDocument)
+                    .environmentObject(appState)
+                    .frame(minWidth: 520)
+                    .layoutPriority(1)
+                    .navigationSplitViewColumnWidth(min: 520, ideal: 0, max: .infinity)
+            } detail: {
+                InspectorView(plan: document.planDocument)
+                    .environmentObject(appState)
+                    .frame(minWidth: 320, idealWidth: 360, maxWidth: 440)
+                    .navigationSplitViewColumnWidth(min: 320, ideal: 360, max: 440)
+            }
+
+            // Hidden buttons to capture Tab navigation
+            VStack {
+                Button("") {
+                    appState.shouldFocusInspector = true
+                }
+                .keyboardShortcut(.tab, modifiers: [])
+                .hidden()
+                .frame(width: 0, height: 0)
+
+                Button("") {
+                    appState.shouldFocusCanvas = true
+                }
+                .keyboardShortcut(.tab, modifiers: [.shift])
+                .hidden()
+                .frame(width: 0, height: 0)
+            }
         }
         .navigationTitle(document.planDocument.name)
         .navigationSubtitle(documentSubtitle)

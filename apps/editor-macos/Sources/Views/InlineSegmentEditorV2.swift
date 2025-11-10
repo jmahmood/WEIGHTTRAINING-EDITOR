@@ -26,6 +26,10 @@ struct InlineSegmentEditorV2: View {
         case sets, reps, repsMin, repsMax, rest, rpe, notes
     }
 
+    private var isFirstResponder: Bool {
+        focusedField != nil
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Only show save/revert when there are changes
@@ -148,6 +152,12 @@ struct InlineSegmentEditorV2: View {
         }
         .onAppear {
             loadCurrentValues()
+        }
+        .onChange(of: appState.shouldFocusInspector) { shouldFocus in
+            if shouldFocus {
+                focusedField = .sets
+                appState.shouldFocusInspector = false
+            }
         }
     }
 

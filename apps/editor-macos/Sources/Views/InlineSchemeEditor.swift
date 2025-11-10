@@ -86,6 +86,12 @@ struct InlineSchemeEditor: View {
         .onAppear {
             loadCurrentValues()
         }
+        .onChange(of: appState.shouldFocusInspector) { shouldFocus in
+            if shouldFocus {
+                // Consume the flag - scheme editor has complex nested focus
+                appState.shouldFocusInspector = false
+            }
+        }
     }
 
     private func loadCurrentValues() {

@@ -9,6 +9,7 @@ class AppState: ObservableObject {
     @Published var focusedDayIndex: Int?
     @Published var recentlyAddedSegmentID: String?
     @Published var shouldFocusInspector = false
+    @Published var shouldFocusCanvas = false
     weak var activePlan: PlanDocument?
 
     // Dialog State

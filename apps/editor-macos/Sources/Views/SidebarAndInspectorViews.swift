@@ -219,7 +219,6 @@ struct InspectorView: View {
     @ObservedObject var plan: PlanDocument
     @EnvironmentObject var appState: AppState
     @State private var targetedGroup: String?
-    @FocusState private var inspectorFocused: Bool
 
     private var selection: SegmentDisplay? {
         guard let identifier = appState.selectedSegmentIds.first else { return nil }
@@ -298,14 +297,6 @@ struct InspectorView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Color(NSColor.windowBackgroundColor))
-        .focusable()
-        .focused($inspectorFocused)
-        .onChange(of: appState.shouldFocusInspector) { shouldFocus in
-            if shouldFocus {
-                inspectorFocused = true
-                appState.shouldFocusInspector = false
-            }
-        }
         .sheet(item: Binding(
             get: { targetedGroup.map { GroupIdentifier(name: $0) } },
             set: { targetedGroup = $0?.name }

@@ -53,6 +53,12 @@ struct InlineCommentEditor: View {
         .onAppear {
             loadCurrentValue()
         }
+        .onChange(of: appState.shouldFocusInspector) { shouldFocus in
+            if shouldFocus {
+                // Consume the flag
+                appState.shouldFocusInspector = false
+            }
+        }
     }
 
     private func startEditing() {
