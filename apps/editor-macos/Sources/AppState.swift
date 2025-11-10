@@ -8,6 +8,7 @@ class AppState: ObservableObject {
     @Published var selectedSegmentIds: Set<String> = []
     @Published var focusedDayIndex: Int?
     @Published var recentlyAddedSegmentID: String?
+    @Published var recentlyAddedDayIndex: Int?
     @Published var shouldFocusInspector = false
     @Published var shouldFocusCanvas = false
     weak var activePlan: PlanDocument?
@@ -168,6 +169,15 @@ class AppState: ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
             if self?.recentlyAddedSegmentID == identifier {
                 self?.recentlyAddedSegmentID = nil
+            }
+        }
+    }
+
+    func markRecentlyAddedDay(dayIndex: Int) {
+        recentlyAddedDayIndex = dayIndex
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+            if self?.recentlyAddedDayIndex == dayIndex {
+                self?.recentlyAddedDayIndex = nil
             }
         }
     }

@@ -75,6 +75,10 @@ struct MainWindowView: View {
         .sheet(item: $appState.previewToken) { token in
             SegmentPreviewSheet(plan: document.planDocument, token: token)
         }
+        .sheet(isPresented: $appState.showDayEditor) {
+            DayEditorView(plan: document.planDocument)
+                .environmentObject(appState)
+        }
         .onAppear {
             appState.activePlan = document.planDocument
         }
@@ -126,6 +130,8 @@ struct MainWindowView: View {
                 try document.planDocument.addSegment(segmentJSON, toDayAt: dayIndex)
                 if document.planDocument.days.indices.contains(dayIndex) {
                     let newIndex = document.planDocument.days[dayIndex].segmentCount - 1
+                    // Auto-select and scroll to new segment (Raskin: immediate feedback)
+                    appState.selectIdentifier("\(dayIndex)_\(newIndex)")
                     appState.markRecentlyAddedSegment(dayIndex: dayIndex, segmentIndex: newIndex)
                 }
             }

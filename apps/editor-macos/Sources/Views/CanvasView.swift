@@ -54,21 +54,34 @@ struct CanvasView: View {
                                 focusCanvas: { canvasFocused = true }
                             )
                             .id("day_\(day.id)")
+                            .transition(.asymmetric(
+                                insertion: .opacity.combined(with: .scale(scale: 0.95)).animation(.easeOut(duration: 0.15)),
+                                removal: .opacity.combined(with: .scale(scale: 0.95)).animation(.easeIn(duration: 0.1))
+                            ))
                         }
+                        .animation(.easeInOut(duration: 0.12), value: plan.days.map(\.id))
                     }
                 }
                 .padding()
             }
             .onChange(of: appState.recentlyAddedSegmentID) { identifier in
                 guard let identifier else { return }
-                withAnimation(.easeInOut(duration: 0.3)) {
+                // Raskin-style immediate feedback: 100ms scroll animation
+                withAnimation(.easeOut(duration: 0.1)) {
                     proxy.scrollTo(identifier, anchor: .center)
+                }
+            }
+            .onChange(of: appState.recentlyAddedDayIndex) { dayIndex in
+                guard let dayIndex else { return }
+                // Scroll to newly added day
+                withAnimation(.easeOut(duration: 0.1)) {
+                    proxy.scrollTo("day_\(dayIndex)", anchor: .center)
                 }
             }
             .onChange(of: appState.selectedSegmentIds) { selectedIds in
                 // Scroll to keep selected segment visible when navigating with keyboard
                 guard canvasFocused, let firstSelected = selectedIds.first else { return }
-                withAnimation(.easeInOut(duration: 0.2)) {
+                withAnimation(.easeOut(duration: 0.1)) {
                     proxy.scrollTo(firstSelected, anchor: .center)
                 }
             }
@@ -171,6 +184,11 @@ struct DayView: View {
     let isSelected: Bool
     let focusCanvas: () -> Void
     @EnvironmentObject var appState: AppState
+    @State private var highlightAnimation = false
+
+    private var isRecent: Bool {
+        appState.recentlyAddedDayIndex == day.id
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -207,8 +225,19 @@ struct DayView: View {
             }
             .padding(.vertical, 8)
             .padding(.horizontal, 12)
-            .background(isSelected ? Color.accentColor.opacity(0.1) : Color.clear)
+            .background(dayHeaderBackground)
             .cornerRadius(8)
+            // Raskin-style immediate feedback: subtle pulse for newly added days
+            .scaleEffect(isRecent && highlightAnimation ? 1.01 : 1.0)
+            .animation(.easeInOut(duration: 0.15).repeatCount(2, autoreverses: true), value: highlightAnimation)
+            .onChange(of: isRecent) { newValue in
+                if newValue {
+                    highlightAnimation = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                        highlightAnimation = false
+                    }
+                }
+            }
             .onTapGesture {
                 focusCanvas()
                 appState.selectDay(day.id)
@@ -236,10 +265,22 @@ struct DayView: View {
                         focusCanvas: focusCanvas
                     )
                     .id(segment.id)
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .scale(scale: 0.95)).animation(.easeOut(duration: 0.15)),
+                        removal: .opacity.combined(with: .scale(scale: 0.95)).animation(.easeIn(duration: 0.1))
+                    ))
                 }
+                .animation(.easeInOut(duration: 0.12), value: segments.map(\.id))
             }
         }
         .padding(.vertical, 8)
+    }
+
+    private var dayHeaderBackground: Color {
+        if isRecent {
+            return Color.accentColor.opacity(0.2)
+        }
+        return isSelected ? Color.accentColor.opacity(0.1) : Color.clear
     }
 }
 
@@ -250,6 +291,7 @@ struct SegmentRowView: View {
     let isRecent: Bool
     let focusCanvas: () -> Void
     @EnvironmentObject var appState: AppState
+    @State private var highlightAnimation = false
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -341,6 +383,17 @@ struct SegmentRowView: View {
             RoundedRectangle(cornerRadius: 6)
                 .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 2)
         )
+        // Raskin-style immediate feedback: subtle pulse for newly added items
+        .scaleEffect(isRecent && highlightAnimation ? 1.02 : 1.0)
+        .animation(.easeInOut(duration: 0.15).repeatCount(2, autoreverses: true), value: highlightAnimation)
+        .onChange(of: isRecent) { newValue in
+            if newValue {
+                highlightAnimation = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                    highlightAnimation = false
+                }
+            }
+        }
         .onTapGesture {
             handleSelection()
         }
