@@ -1,22 +1,22 @@
 // Module declarations
-mod state;
-mod ui;
+mod canvas;
+mod dialogs;
 mod operations;
 mod services;
-mod dialogs;
-mod canvas;
+mod state;
+mod ui;
 
 // Imports
 use crate::ui::mainmenu::build_ui;
 use gtk4::prelude::*;
-use gtk4::{Application, CssProvider, gdk};
+use gtk4::{gdk, Application, CssProvider};
 
 const APP_ID: &str = "com.github.weightlifting-desktop";
 
 fn main() {
     // **Death to Windows!** - GTK4 + libadwaita native Linux application
     let app = Application::builder().application_id(APP_ID).build();
-    
+
     // Load custom CSS for segment selection highlighting
     app.connect_startup(|_| {
         let provider = CssProvider::new();
@@ -28,7 +28,7 @@ fn main() {
         );
         gtk4::style_context_add_provider_for_display(&gdk::Display::default().unwrap(), &provider, gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION);
     });
-    
+
     app.connect_activate(build_ui);
     app.run();
 }

@@ -1,4 +1,9 @@
 /target
+build
+.build
 docs
 logs
 outbox
+*/.DS_Store
+.DS_Store
+apps/.DS_Store

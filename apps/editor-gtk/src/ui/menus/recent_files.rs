@@ -1,20 +1,20 @@
+use crate::services::recent_files::RecentFilesService;
+use gtk4::prelude::{FileExt, RecentManagerExt, ToVariant};
 use gtk4::RecentManager;
 use libadwaita::gio::{Menu, MenuItem};
-use gtk4::prelude::{RecentManagerExt, ToVariant, FileExt};
-use crate::services::recent_files::RecentFilesService;
 
 #[allow(dead_code)]
 pub fn create_recent_menu() -> Menu {
     let recent_menu = Menu::new();
     populate_recent_menu(&recent_menu, 5, &["application/json"]);
-    
+
     // Set up automatic updates
     let recent_mgr = RecentManager::default();
     let menu_clone = recent_menu.clone();
     recent_mgr.connect_changed(move |_| {
         populate_recent_menu(&menu_clone, 5, &["application/json"]);
     });
-    
+
     recent_menu
 }
 
@@ -23,12 +23,18 @@ pub fn populate_recent_menu(menu: &Menu, max_items: usize, mime_whitelist: &[&st
     populate_recent_menu_with_service(menu, max_items, mime_whitelist, None);
 }
 
-pub fn populate_recent_menu_with_service(menu: &Menu, max_items: usize, mime_whitelist: &[&str], service: Option<&RecentFilesService>) {
+pub fn populate_recent_menu_with_service(
+    menu: &Menu,
+    max_items: usize,
+    mime_whitelist: &[&str],
+    service: Option<&RecentFilesService>,
+) {
     menu.remove_all();
 
     // Gather known infos once and map by URI for quick lookup
     let infos = RecentManager::default().items();
-    let mut by_uri: std::collections::HashMap<String, gtk4::RecentInfo> = std::collections::HashMap::new();
+    let mut by_uri: std::collections::HashMap<String, gtk4::RecentInfo> =
+        std::collections::HashMap::new();
     for info in infos.into_iter() {
         by_uri.insert(info.uri().to_string(), info);
     }
@@ -36,7 +42,11 @@ pub fn populate_recent_menu_with_service(menu: &Menu, max_items: usize, mime_whi
     // Determine ordered URIs: prefer service MRU if provided and non-empty
     let ordered_uris: Vec<String> = if let Some(svc) = service {
         let uris = svc.get_all_uris();
-        if !uris.is_empty() { uris } else { by_uri.keys().cloned().collect() }
+        if !uris.is_empty() {
+            uris
+        } else {
+            by_uri.keys().cloned().collect()
+        }
     } else {
         by_uri.keys().cloned().collect()
     };
@@ -74,11 +84,17 @@ pub fn populate_recent_menu_with_service(menu: &Menu, max_items: usize, mime_whi
 
         // MIME filtering and existence checks
         if let Some(info) = info_opt {
-            if !info.exists() || !info.is_local() { continue; }
-            if !mime_whitelist.is_empty() && !mime_whitelist.contains(&info.mime_type().as_str()) { continue; }
+            if !info.exists() || !info.is_local() {
+                continue;
+            }
+            if !mime_whitelist.is_empty() && !mime_whitelist.contains(&info.mime_type().as_str()) {
+                continue;
+            }
         } else {
             // If we don't have info, do a light filter by extension when whitelist is set
-            if !mime_whitelist.is_empty() && !uri.to_lowercase().ends_with(".json") { continue; }
+            if !mime_whitelist.is_empty() && !uri.to_lowercase().ends_with(".json") {
+                continue;
+            }
         }
 
         // Label from info if available, else fallback to filename from URI
@@ -112,7 +128,9 @@ pub fn populate_recent_menu_with_service(menu: &Menu, max_items: usize, mime_whi
         menu.append_item(&item);
 
         added += 1;
-        if added >= max_items { break; }
+        if added >= max_items {
+            break;
+        }
     }
 
     // Do not mutate service MRU here; ordering comes from service

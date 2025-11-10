@@ -22,6 +22,14 @@ cp .build/release/WeightliftingEditor "$APP_PATH/Contents/MacOS/"
 echo "Copying Info.plist..."
 cp Info.plist "$APP_PATH/Contents/"
 
+# Copy app icon if it exists
+if [ -f "AppIcon.icns" ]; then
+    echo "Copying app icon..."
+    cp AppIcon.icns "$APP_PATH/Contents/Resources/"
+else
+    echo "Warning: AppIcon.icns not found - app will use default icon"
+fi
+
 # Copy Rust library
 echo "Copying Rust FFI library..."
 mkdir -p "$APP_PATH/Contents/Frameworks"

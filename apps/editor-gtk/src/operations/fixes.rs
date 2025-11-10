@@ -15,7 +15,9 @@ pub fn replace_exercise_references(state: Arc<Mutex<AppState>>, from: &str, to: 
         // Update groups
         for members in plan.groups.values_mut() {
             for mem in members.iter_mut() {
-                if mem == from { *mem = to.to_string(); }
+                if mem == from {
+                    *mem = to.to_string();
+                }
             }
         }
         s.mark_modified();
@@ -25,52 +27,80 @@ pub fn replace_exercise_references(state: Arc<Mutex<AppState>>, from: &str, to: 
 fn replace_in_segment(seg: &mut Segment, from: &str, to: &str) {
     match seg {
         Segment::Straight(s) => {
-            if s.base.ex == from { s.base.ex = to.to_string(); }
+            if s.base.ex == from {
+                s.base.ex = to.to_string();
+            }
         }
         Segment::Rpe(s) => {
-            if s.base.ex == from { s.base.ex = to.to_string(); }
+            if s.base.ex == from {
+                s.base.ex = to.to_string();
+            }
         }
         Segment::Percentage(s) => {
-            if s.base.ex == from { s.base.ex = to.to_string(); }
+            if s.base.ex == from {
+                s.base.ex = to.to_string();
+            }
         }
         Segment::Amrap(s) => {
-            if s.base.ex == from { s.base.ex = to.to_string(); }
+            if s.base.ex == from {
+                s.base.ex = to.to_string();
+            }
         }
         Segment::Superset(sup) => {
             for item in &mut sup.items {
-                if item.ex == from { item.ex = to.to_string(); }
+                if item.ex == from {
+                    item.ex = to.to_string();
+                }
             }
         }
         Segment::Circuit(circ) => {
             for item in &mut circ.items {
-                if item.ex == from { item.ex = to.to_string(); }
+                if item.ex == from {
+                    item.ex = to.to_string();
+                }
             }
         }
         Segment::Scheme(sch) => {
-            if sch.base.ex == from { sch.base.ex = to.to_string(); }
+            if sch.base.ex == from {
+                sch.base.ex = to.to_string();
+            }
         }
         Segment::Complex(cmp) => {
             if let Some(ex) = &mut cmp.anchor_load.ex {
-                if ex == from { *ex = to.to_string(); }
+                if ex == from {
+                    *ex = to.to_string();
+                }
             }
             for item in &mut cmp.sequence {
-                if item.ex == from { item.ex = to.to_string(); }
+                if item.ex == from {
+                    item.ex = to.to_string();
+                }
             }
         }
         Segment::GroupChoose(g) => {
-            for s in &mut g.from { replace_in_segment(s, from, to); }
+            for s in &mut g.from {
+                replace_in_segment(s, from, to);
+            }
         }
         Segment::GroupRotate(g) => {
-            for s in &mut g.items { replace_in_segment(s, from, to); }
+            for s in &mut g.items {
+                replace_in_segment(s, from, to);
+            }
         }
         Segment::GroupOptional(g) => {
-            for s in &mut g.items { replace_in_segment(s, from, to); }
+            for s in &mut g.items {
+                replace_in_segment(s, from, to);
+            }
         }
         Segment::GroupSuperset(g) => {
-            for s in &mut g.items { replace_in_segment(s, from, to); }
+            for s in &mut g.items {
+                replace_in_segment(s, from, to);
+            }
         }
         Segment::Time(t) => {
-            if t.base.ex == from { t.base.ex = to.to_string(); }
+            if t.base.ex == from {
+                t.base.ex = to.to_string();
+            }
         }
         Segment::Comment(_) => {}
     }
@@ -95,7 +125,9 @@ pub fn rename_exercise_code(state: Arc<Mutex<AppState>>, old_code: &str, new_cod
 pub fn ensure_dictionary_entry(state: Arc<Mutex<AppState>>, code: &str, name: &str) {
     let mut s = state.lock().unwrap();
     if let Some(plan) = &mut s.current_plan {
-        plan.dictionary.entry(code.to_string()).or_insert(name.to_string());
+        plan.dictionary
+            .entry(code.to_string())
+            .or_insert(name.to_string());
         s.mark_modified();
     }
 }

@@ -1,5 +1,5 @@
-pub mod navigator;
 pub mod canvas;
+pub mod navigator;
 pub mod preview_bar;
 pub mod right_panel;
 

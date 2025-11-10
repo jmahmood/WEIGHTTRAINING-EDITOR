@@ -82,18 +82,30 @@ impl MediaAttachmentWriter {
         Ok(())
     }
 
-    pub fn attach(&self, set_key: SetKey, media_file: impl Into<String>) -> Result<(), AttachmentIoError> {
+    pub fn attach(
+        &self,
+        set_key: SetKey,
+        media_file: impl Into<String>,
+    ) -> Result<(), AttachmentIoError> {
         let ev = MediaAttachmentEvent::new(AttachmentEventKind::Attach, set_key, media_file);
         self.append_event(&ev)
     }
 
-    pub fn detach(&self, set_key: SetKey, media_file: impl Into<String>) -> Result<(), AttachmentIoError> {
+    pub fn detach(
+        &self,
+        set_key: SetKey,
+        media_file: impl Into<String>,
+    ) -> Result<(), AttachmentIoError> {
         let ev = MediaAttachmentEvent::new(AttachmentEventKind::Detach, set_key, media_file);
         self.append_event(&ev)
     }
 
     /// Attach each media file to each set (cartesian)
-    pub fn attach_many(&self, set_keys: &[SetKey], media_files: &[String]) -> Result<(), AttachmentIoError> {
+    pub fn attach_many(
+        &self,
+        set_keys: &[SetKey],
+        media_files: &[String],
+    ) -> Result<(), AttachmentIoError> {
         for sk in set_keys {
             for mf in media_files {
                 self.attach(sk.clone(), mf.clone())?;
@@ -103,7 +115,11 @@ impl MediaAttachmentWriter {
     }
 
     /// Detach each media file from each set (cartesian)
-    pub fn detach_many(&self, set_keys: &[SetKey], media_files: &[String]) -> Result<(), AttachmentIoError> {
+    pub fn detach_many(
+        &self,
+        set_keys: &[SetKey],
+        media_files: &[String],
+    ) -> Result<(), AttachmentIoError> {
         for sk in set_keys {
             for mf in media_files {
                 self.detach(sk.clone(), mf.clone())?;
@@ -116,7 +132,9 @@ impl MediaAttachmentWriter {
 pub struct MediaAttachmentReader;
 
 impl MediaAttachmentReader {
-    pub fn read_all<P: AsRef<Path>>(path: P) -> Result<Vec<MediaAttachmentEvent>, AttachmentIoError> {
+    pub fn read_all<P: AsRef<Path>>(
+        path: P,
+    ) -> Result<Vec<MediaAttachmentEvent>, AttachmentIoError> {
         let path = path.as_ref();
         if !path.exists() {
             return Ok(vec![]);
@@ -126,7 +144,9 @@ impl MediaAttachmentReader {
         let mut events = Vec::new();
         for line in reader.lines() {
             let line = line?;
-            if line.trim().is_empty() { continue; }
+            if line.trim().is_empty() {
+                continue;
+            }
             let ev: MediaAttachmentEvent = serde_json::from_str(&line)?;
             events.push(ev);
         }
@@ -156,7 +176,9 @@ impl MediaAttachmentReader {
         map
     }
 
-    pub fn compute_current_from_file<P: AsRef<Path>>(path: P) -> Result<HashMap<SetKey, HashSet<String>>, AttachmentIoError> {
+    pub fn compute_current_from_file<P: AsRef<Path>>(
+        path: P,
+    ) -> Result<HashMap<SetKey, HashSet<String>>, AttachmentIoError> {
         let events = Self::read_all(path)?;
         Ok(Self::compute_current(&events))
     }
@@ -169,7 +191,11 @@ mod tests {
     use uuid::Uuid;
 
     fn sk(session: &str, ex: &str, set_num: u32) -> SetKey {
-        SetKey { session_id: session.to_string(), ex_code: ex.to_string(), set_num }
+        SetKey {
+            session_id: session.to_string(),
+            ex_code: ex.to_string(),
+            set_num,
+        }
     }
 
     #[test]
@@ -179,20 +205,26 @@ mod tests {
         let path = base.join("media_attachments.jsonl");
         let writer = MediaAttachmentWriter::new(&path);
 
-        writer.attach(sk("S1","BP.BB.FLAT",1), "set1.mp4").unwrap();
-        writer.attach(sk("S1","BP.BB.FLAT",1), "alt_angle.mp4").unwrap();
-        writer.attach(sk("S1","SQ.BB.HB",2), "sq2.mp4").unwrap();
-        writer.detach(sk("S1","BP.BB.FLAT",1), "alt_angle.mp4").unwrap();
+        writer
+            .attach(sk("S1", "BP.BB.FLAT", 1), "set1.mp4")
+            .unwrap();
+        writer
+            .attach(sk("S1", "BP.BB.FLAT", 1), "alt_angle.mp4")
+            .unwrap();
+        writer.attach(sk("S1", "SQ.BB.HB", 2), "sq2.mp4").unwrap();
+        writer
+            .detach(sk("S1", "BP.BB.FLAT", 1), "alt_angle.mp4")
+            .unwrap();
 
         let events = MediaAttachmentReader::read_all(&path).unwrap();
         assert_eq!(events.len(), 4);
 
         let current = MediaAttachmentReader::compute_current(&events);
         assert_eq!(current.len(), 2);
-        let bp_files = current.get(&sk("S1","BP.BB.FLAT",1)).unwrap();
+        let bp_files = current.get(&sk("S1", "BP.BB.FLAT", 1)).unwrap();
         assert!(bp_files.contains("set1.mp4"));
         assert!(!bp_files.contains("alt_angle.mp4"));
-        let sq_files = current.get(&sk("S1","SQ.BB.HB",2)).unwrap();
+        let sq_files = current.get(&sk("S1", "SQ.BB.HB", 2)).unwrap();
         assert!(sq_files.contains("sq2.mp4"));
         // best-effort cleanup
         let _ = fs::remove_file(&path);

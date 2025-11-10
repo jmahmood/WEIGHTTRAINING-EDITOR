@@ -1,8 +1,8 @@
+use chrono::{NaiveDate, NaiveTime};
 use csv::Reader;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::path::Path;
-use chrono::{NaiveDate, NaiveTime};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -33,13 +33,13 @@ pub struct SessionRecord {
     pub reps: Option<u32>,
     pub time_sec: Option<u32>,
     pub weight: Option<f64>,
-    pub unit: String, // kg, lb, bw
+    pub unit: String,  // kg, lb, bw
     pub is_warmup: u8, // 0 or 1
     pub rpe: Option<f64>,
     pub rir: Option<u32>,
     pub tempo: Option<String>,
     pub rest_sec: Option<u32>,
-    pub effort_1to5: u32, // 1-5 scale
+    pub effort_1to5: u32,     // 1-5 scale
     pub tags: Option<String>, // semicolon-separated
     pub notes: Option<String>,
     pub pr_types: Option<String>, // semicolon-separated
@@ -48,29 +48,31 @@ pub struct SessionRecord {
 impl SessionRecord {
     /// Check if this is a main working set (not warmup, has weight/reps)
     pub fn is_working_set(&self) -> bool {
-        self.is_warmup == 0 && 
-        (self.reps.is_some() || self.time_sec.is_some()) &&
-        (self.weight.is_some() || self.unit == "bw")
+        self.is_warmup == 0
+            && (self.reps.is_some() || self.time_sec.is_some())
+            && (self.weight.is_some() || self.unit == "bw")
     }
-    
+
     /// Get estimated 1RM for this set if possible
     pub fn can_calculate_e1rm(&self) -> bool {
-        self.is_working_set() && 
-        self.reps.is_some() && 
-        self.reps.unwrap() > 0 &&
-        (self.weight.is_some() || self.unit == "bw")
+        self.is_working_set()
+            && self.reps.is_some()
+            && self.reps.unwrap() > 0
+            && (self.weight.is_some() || self.unit == "bw")
     }
-    
+
     /// Extract tags as vector
     pub fn get_tags(&self) -> Vec<String> {
-        self.tags.as_ref()
+        self.tags
+            .as_ref()
             .map(|tags| tags.split(';').map(|s| s.trim().to_string()).collect())
             .unwrap_or_default()
     }
-    
+
     /// Extract PR types as vector
     pub fn get_pr_types(&self) -> Vec<String> {
-        self.pr_types.as_ref()
+        self.pr_types
+            .as_ref()
             .map(|prs| prs.split(';').map(|s| s.trim().to_string()).collect())
             .unwrap_or_default()
     }
@@ -91,84 +93,88 @@ impl SessionCsvParser {
     pub fn new() -> Self {
         Self {}
     }
-    
+
     /// Parse a CSV file containing session data
     pub fn parse_csv_file<P: AsRef<Path>>(
-        &self, 
-        path: P
+        &self,
+        path: P,
     ) -> Result<Vec<SessionRecord>, CsvParseError> {
         let file = File::open(&path)?;
         let mut reader = Reader::from_reader(file);
-        
+
         let mut records = Vec::new();
-        
+
         for result in reader.deserialize() {
             let raw_record: RawSessionRecord = result?;
             let record = self.parse_record(raw_record)?;
             records.push(record);
         }
-        
+
         Ok(records)
     }
-    
+
     fn parse_record(&self, raw: RawSessionRecord) -> Result<SessionRecord, CsvParseError> {
         let date = NaiveDate::parse_from_str(&raw.date, "%Y-%m-%d")
             .map_err(|e| CsvParseError::DateParse(format!("date: {}", e)))?;
-            
+
         let time = NaiveTime::parse_from_str(&raw.time, "%H:%M:%S")
             .map_err(|e| CsvParseError::DateParse(format!("time: {}", e)))?;
-        
+
         // Validate unit
         if !["kg", "lb", "bw"].contains(&raw.unit.as_str()) {
-            return Err(CsvParseError::InvalidData(
-                format!("Invalid unit: {}", raw.unit)
-            ));
+            return Err(CsvParseError::InvalidData(format!(
+                "Invalid unit: {}",
+                raw.unit
+            )));
         }
-        
+
         // Validate effort scale
         if raw.effort_1to5 < 1 || raw.effort_1to5 > 5 {
-            return Err(CsvParseError::InvalidData(
-                format!("Invalid effort_1to5: {}", raw.effort_1to5)
-            ));
+            return Err(CsvParseError::InvalidData(format!(
+                "Invalid effort_1to5: {}",
+                raw.effort_1to5
+            )));
         }
 
         // Validate RPE bounds if provided
         if let Some(rpe) = raw.rpe {
             if !(6.0..=10.0).contains(&rpe) {
-                return Err(CsvParseError::InvalidData(
-                    format!("Invalid rpe: {} (expected 6.0-10.0)", rpe)
-                ));
+                return Err(CsvParseError::InvalidData(format!(
+                    "Invalid rpe: {} (expected 6.0-10.0)",
+                    rpe
+                )));
             }
         }
 
         // Validate RIR bounds if provided
         if let Some(rir) = raw.rir {
             if rir > 5 {
-                return Err(CsvParseError::InvalidData(
-                    format!("Invalid rir: {} (expected 0-5)", rir)
-                ));
+                return Err(CsvParseError::InvalidData(format!(
+                    "Invalid rir: {} (expected 0-5)",
+                    rir
+                )));
             }
         }
-        
+
         // Check XOR constraint: either reps or time_sec, not both
         match (raw.reps.as_ref(), raw.time_sec.as_ref()) {
             (Some(_), Some(_)) => {
                 return Err(CsvParseError::InvalidData(
-                    "Both reps and time_sec specified - only one allowed".to_string()
+                    "Both reps and time_sec specified - only one allowed".to_string(),
                 ));
-            },
+            }
             (None, None) if raw.is_warmup == 0 => {
                 return Err(CsvParseError::InvalidData(
-                    "Neither reps nor time_sec specified for working set".to_string()
+                    "Neither reps nor time_sec specified for working set".to_string(),
                 ));
-            },
+            }
             _ => {} // Valid
         }
-        
+
         // If bodyweight unit, weight must be empty
         if raw.unit == "bw" && raw.weight.is_some() {
             return Err(CsvParseError::InvalidData(
-                "Weight must be empty when unit is 'bw'".to_string()
+                "Weight must be empty when unit is 'bw'".to_string(),
             ));
         }
 
@@ -176,10 +182,22 @@ impl SessionCsvParser {
             session_id: raw.session_id,
             date,
             time,
-            plan_name: if raw.plan_name.is_empty() { None } else { Some(raw.plan_name) },
-            day_label: if raw.day_label.is_empty() { None } else { Some(raw.day_label) },
+            plan_name: if raw.plan_name.is_empty() {
+                None
+            } else {
+                Some(raw.plan_name)
+            },
+            day_label: if raw.day_label.is_empty() {
+                None
+            } else {
+                Some(raw.day_label)
+            },
             segment_id: raw.segment_id,
-            superset_id: if raw.superset_id.is_empty() { None } else { Some(raw.superset_id) },
+            superset_id: if raw.superset_id.is_empty() {
+                None
+            } else {
+                Some(raw.superset_id)
+            },
             ex_code: raw.ex_code,
             adlib: raw.adlib,
             set_num: raw.set_num,
@@ -190,12 +208,28 @@ impl SessionCsvParser {
             is_warmup: raw.is_warmup,
             rpe: raw.rpe,
             rir: raw.rir,
-            tempo: if raw.tempo.is_empty() { None } else { Some(raw.tempo) },
+            tempo: if raw.tempo.is_empty() {
+                None
+            } else {
+                Some(raw.tempo)
+            },
             rest_sec: raw.rest_sec,
             effort_1to5: raw.effort_1to5,
-            tags: if raw.tags.is_empty() { None } else { Some(raw.tags) },
-            notes: if raw.notes.is_empty() { None } else { Some(raw.notes) },
-            pr_types: if raw.pr_types.is_empty() { None } else { Some(raw.pr_types) },
+            tags: if raw.tags.is_empty() {
+                None
+            } else {
+                Some(raw.tags)
+            },
+            notes: if raw.notes.is_empty() {
+                None
+            } else {
+                Some(raw.notes)
+            },
+            pr_types: if raw.pr_types.is_empty() {
+                None
+            } else {
+                Some(raw.pr_types)
+            },
         })
     }
 }
@@ -242,19 +276,19 @@ mod tests {
 
         let mut temp_file = NamedTempFile::new().unwrap();
         writeln!(temp_file, "{}", csv_content).unwrap();
-        
+
         let parser = SessionCsvParser::new();
         let records = parser.parse_csv_file(temp_file.path()).unwrap();
-        
+
         assert_eq!(records.len(), 2);
-        
+
         let first = &records[0];
         assert_eq!(first.ex_code, "BP.BB.FLAT");
         assert_eq!(first.reps, Some(5));
         assert_eq!(first.weight, Some(85.0));
         assert_eq!(first.unit, "kg");
         assert!(first.can_calculate_e1rm());
-        
+
         let second = &records[1];
         assert_eq!(second.ex_code, "CORE.BW.PLNK");
         assert_eq!(second.time_sec, Some(45));

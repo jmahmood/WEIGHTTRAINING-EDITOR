@@ -1,8 +1,11 @@
-use crate::state::AppState;
 use crate::dialogs::exercise_groups::show_manage_exercise_groups_dialog_with_selection;
-use gtk4::{Box as GtkBox, Orientation, Label, Button, ScrolledWindow, ListBox, ListBoxRow, Entry, Notebook, GestureClick, DropDown};
-use gtk4::prelude::*;
+use crate::state::AppState;
 use glib::clone;
+use gtk4::prelude::*;
+use gtk4::{
+    Box as GtkBox, Button, DropDown, Entry, GestureClick, Label, ListBox, ListBoxRow, Notebook,
+    Orientation, ScrolledWindow,
+};
 use std::sync::{Arc, Mutex};
 use weightlifting_core::AppPaths;
 
@@ -41,7 +44,11 @@ pub fn create_right_panel(state: Arc<Mutex<AppState>>, _paths: Arc<AppPaths>) ->
     glib::timeout_add_seconds_local(1, move || {
         let (dict_len, groups_len) = {
             let s = state_for_timer.lock().unwrap();
-            if let Some(plan) = &s.current_plan { (plan.dictionary.len(), plan.groups.len()) } else { (0, 0) }
+            if let Some(plan) = &s.current_plan {
+                (plan.dictionary.len(), plan.groups.len())
+            } else {
+                (0, 0)
+            }
         };
         let prev = last_counts.get();
         if prev != (dict_len, groups_len) {
@@ -78,10 +85,35 @@ fn create_exercises_tab(state: Arc<Mutex<AppState>>) -> (GtkBox, ListBox) {
 
     // PATTERN and IMPLEMENT dropdowns with a Custom option
     let patterns: Vec<&str> = vec![
-        "SQ","BP","DL","OHP","ROW","PULLUP","DIP","HINGE","LUNGE","CALF","CORE","CARRY","CURL","EXT","RAISE","Custom…",
+        "SQ",
+        "BP",
+        "DL",
+        "OHP",
+        "ROW",
+        "PULLUP",
+        "DIP",
+        "HINGE",
+        "LUNGE",
+        "CALF",
+        "CORE",
+        "CARRY",
+        "CURL",
+        "EXT",
+        "RAISE",
+        "Custom…",
     ];
     let implements: Vec<&str> = vec![
-        "BB","DB","KB","BW","CBL","MACH","SM","SWISS","TB","SSB","Custom…",
+        "BB",
+        "DB",
+        "KB",
+        "BW",
+        "CBL",
+        "MACH",
+        "SM",
+        "SWISS",
+        "TB",
+        "SSB",
+        "Custom…",
     ];
     let pattern_dd = DropDown::from_strings(&patterns);
     let implement_dd = DropDown::from_strings(&implements);
@@ -94,7 +126,9 @@ fn create_exercises_tab(state: Arc<Mutex<AppState>>) -> (GtkBox, ListBox) {
     implement_custom.set_placeholder_text(Some("Custom IMPLEMENT (uppercase)"));
     implement_custom.set_visible(false);
     let variant_entry = Entry::new();
-    variant_entry.set_placeholder_text(Some("VARIANT (short uppercase code, e.g., FLAT, INCLINE, NARROW)"));
+    variant_entry.set_placeholder_text(Some(
+        "VARIANT (short uppercase code, e.g., FLAT, INCLINE, NARROW)",
+    ));
 
     let name_entry = Entry::new();
     name_entry.set_placeholder_text(Some("Exercise Name (e.g., Bench Press)"));
@@ -104,19 +138,27 @@ fn create_exercises_tab(state: Arc<Mutex<AppState>>) -> (GtkBox, ListBox) {
         .orientation(Orientation::Horizontal)
         .spacing(6)
         .build();
-    let pattern_box = GtkBox::builder().orientation(Orientation::Vertical).spacing(4).build();
+    let pattern_box = GtkBox::builder()
+        .orientation(Orientation::Vertical)
+        .spacing(4)
+        .build();
     pattern_box.append(&pattern_dd);
     pattern_box.append(&pattern_custom);
     code_row.append(&pattern_box);
     code_row.append(&Label::new(Some(".")));
-    let implement_box = GtkBox::builder().orientation(Orientation::Vertical).spacing(4).build();
+    let implement_box = GtkBox::builder()
+        .orientation(Orientation::Vertical)
+        .spacing(4)
+        .build();
     implement_box.append(&implement_dd);
     implement_box.append(&implement_custom);
     code_row.append(&implement_box);
     code_row.append(&Label::new(Some(".")));
     code_row.append(&variant_entry);
 
-    grammar_box.append(&Label::new(Some("New Exercise (PATTERN.IMPLEMENT.VARIANT)")));
+    grammar_box.append(&Label::new(Some(
+        "New Exercise (PATTERN.IMPLEMENT.VARIANT)",
+    )));
     grammar_box.append(&code_row);
     grammar_box.append(&name_entry);
 
@@ -145,7 +187,9 @@ fn create_exercises_tab(state: Arc<Mutex<AppState>>) -> (GtkBox, ListBox) {
             let sel = dd.selected() as usize;
             let is_custom = sel + 1 == patterns_len; // last index
             pattern_custom.set_visible(is_custom);
-            if is_custom { pattern_custom.grab_focus(); }
+            if is_custom {
+                pattern_custom.grab_focus();
+            }
         });
     }
     {
@@ -155,7 +199,9 @@ fn create_exercises_tab(state: Arc<Mutex<AppState>>) -> (GtkBox, ListBox) {
             let sel = dd.selected() as usize;
             let is_custom = sel + 1 == implements_len;
             implement_custom.set_visible(is_custom);
-            if is_custom { implement_custom.grab_focus(); }
+            if is_custom {
+                implement_custom.grab_focus();
+            }
         });
     }
 
@@ -244,11 +290,17 @@ fn create_exercises_tab(state: Arc<Mutex<AppState>>) -> (GtkBox, ListBox) {
 }
 
 fn populate_exercises_list(state: Arc<Mutex<AppState>>, list: &ListBox) {
-    while let Some(child) = list.first_child() { list.remove(&child); }
+    while let Some(child) = list.first_child() {
+        list.remove(&child);
+    }
     let s = state.lock().unwrap();
     if let Some(plan) = &s.current_plan {
-        let mut items: Vec<(String, String)> = plan.dictionary.iter().map(|(k,v)| (k.clone(), v.clone())).collect();
-        items.sort_by(|a,b| a.0.cmp(&b.0));
+        let mut items: Vec<(String, String)> = plan
+            .dictionary
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
+        items.sort_by(|a, b| a.0.cmp(&b.0));
         for (code, name) in items {
             let row = ListBoxRow::new();
             let box_ = GtkBox::builder()
@@ -342,11 +394,17 @@ fn create_groups_tab(state: Arc<Mutex<AppState>>) -> (GtkBox, ListBox) {
 }
 
 fn populate_groups_list(state: &Arc<Mutex<AppState>>, list: &ListBox) {
-    while let Some(child) = list.first_child() { list.remove(&child); }
+    while let Some(child) = list.first_child() {
+        list.remove(&child);
+    }
     let s = state.lock().unwrap();
     if let Some(plan) = &s.current_plan {
-        let mut items: Vec<(String, usize)> = plan.groups.iter().map(|(k,v)| (k.clone(), v.len())).collect();
-        items.sort_by(|a,b| a.0.cmp(&b.0));
+        let mut items: Vec<(String, usize)> = plan
+            .groups
+            .iter()
+            .map(|(k, v)| (k.clone(), v.len()))
+            .collect();
+        items.sort_by(|a, b| a.0.cmp(&b.0));
         for (name, count) in items {
             let row = ListBoxRow::new();
             let box_ = GtkBox::builder()
@@ -372,13 +430,13 @@ fn populate_groups_list(state: &Arc<Mutex<AppState>>, list: &ListBox) {
 }
 
 fn show_error_dialog(message: &str) {
-    use gtk4::{DialogFlags, MessageDialog, MessageType, ButtonsType};
+    use gtk4::{ButtonsType, DialogFlags, MessageDialog, MessageType};
     let dialog = MessageDialog::new(
         crate::ui::util::parent_for_dialog().as_ref(),
         DialogFlags::MODAL,
         MessageType::Error,
         ButtonsType::Ok,
-        message
+        message,
     );
     crate::ui::util::standardize_dialog(&dialog);
     dialog.connect_response(|d, _| d.close());
@@ -386,13 +444,13 @@ fn show_error_dialog(message: &str) {
 }
 
 fn confirm_dialog(message: &str) -> bool {
-    use gtk4::{DialogFlags, MessageDialog, MessageType, ButtonsType, ResponseType};
+    use gtk4::{ButtonsType, DialogFlags, MessageDialog, MessageType, ResponseType};
     let dlg = MessageDialog::new(
         crate::ui::util::parent_for_dialog().as_ref(),
         DialogFlags::MODAL,
         MessageType::Question,
         ButtonsType::YesNo,
-        message
+        message,
     );
     crate::ui::util::standardize_dialog(&dlg);
     let decided = std::rc::Rc::new(std::cell::Cell::new(false));
@@ -406,20 +464,33 @@ fn confirm_dialog(message: &str) -> bool {
     });
     dlg.present();
     let ctx = glib::MainContext::default();
-    while !done.get() { ctx.iteration(true); }
+    while !done.get() {
+        ctx.iteration(true);
+    }
     decided.get()
 }
 
-fn generate_unique_variant(state: &Arc<Mutex<AppState>>, pattern: &str, implement: &str, variant: &str) -> String {
+fn generate_unique_variant(
+    state: &Arc<Mutex<AppState>>,
+    pattern: &str,
+    implement: &str,
+    variant: &str,
+) -> String {
     let mut suffix = 2u32;
     loop {
         let candidate = format!("{}{}", variant, suffix);
         let code = format!("{}.{}.{}", pattern, implement, candidate);
         let exists = {
             let s = state.lock().unwrap();
-            if let Some(plan) = &s.current_plan { plan.dictionary.contains_key(&code) } else { false }
+            if let Some(plan) = &s.current_plan {
+                plan.dictionary.contains_key(&code)
+            } else {
+                false
+            }
         };
-        if !exists { return candidate; }
+        if !exists {
+            return candidate;
+        }
         suffix += 1;
     }
 }

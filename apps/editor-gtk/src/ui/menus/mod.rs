@@ -1,23 +1,23 @@
 pub mod recent_files;
 
-use libadwaita::gio::Menu;
-use gtk4::{PopoverMenuBar, MenuButton};
-use std::sync::{Arc, Mutex};
 use crate::state::AppState;
+use gtk4::{MenuButton, PopoverMenuBar};
+use libadwaita::gio::Menu;
+use std::sync::{Arc, Mutex};
 
 pub fn create_main_menubar(state: Arc<Mutex<AppState>>) -> PopoverMenuBar {
     let root = Menu::new();
-    
+
     let file_menu = create_file_menu(state);
     let edit_menu = create_edit_menu();
     let add_menu = create_add_menu();
     let tools_menu = create_tools_menu();
-    
+
     root.append_submenu(Some("_File"), &file_menu);
     root.append_submenu(Some("_Edit"), &edit_menu);
     root.append_submenu(Some("_Add"), &add_menu);
     root.append_submenu(Some("_Tools"), &tools_menu);
-    
+
     PopoverMenuBar::from_model(Some(&root))
 }
 
@@ -25,7 +25,7 @@ pub fn create_help_menu_button() -> MenuButton {
     let help_menu = Menu::new();
     help_menu.append(Some("_Documentation"), Some("app.help"));
     help_menu.append(Some("_About"), Some("app.about"));
-    
+
     MenuButton::builder()
         .label("_Help")
         .use_underline(true)
@@ -40,25 +40,35 @@ fn create_file_menu(state: Arc<Mutex<AppState>>) -> Menu {
     file_menu.append(Some("_Save"), Some("app.save"));
     file_menu.append(Some("Save _As…"), Some("app.save_as"));
     file_menu.append(Some("_Quit"), Some("app.quit"));
-    
+
     let recent_menu = {
         // Build with current MRU order from service when available
         let recent_menu = Menu::new();
         let service = { state.lock().unwrap().recent_files_service.clone() };
-        recent_files::populate_recent_menu_with_service(&recent_menu, 5, &["application/json"], Some(&service));
+        recent_files::populate_recent_menu_with_service(
+            &recent_menu,
+            5,
+            &["application/json"],
+            Some(&service),
+        );
 
         // Also keep auto-updates on RecentManager changes
         let menu_clone = recent_menu.clone();
         let service_clone = service.clone();
-        use gtk4::{RecentManager, prelude::RecentManagerExt};
+        use gtk4::{prelude::RecentManagerExt, RecentManager};
         let recent_mgr = RecentManager::default();
         recent_mgr.connect_changed(move |_| {
-            recent_files::populate_recent_menu_with_service(&menu_clone, 5, &["application/json"], Some(&service_clone));
+            recent_files::populate_recent_menu_with_service(
+                &menu_clone,
+                5,
+                &["application/json"],
+                Some(&service_clone),
+            );
         });
         recent_menu
     };
     file_menu.append_submenu(Some("Open _Recent"), &recent_menu);
-    
+
     file_menu
 }
 

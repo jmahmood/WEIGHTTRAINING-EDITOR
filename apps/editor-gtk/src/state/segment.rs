@@ -1,31 +1,30 @@
 use crate::canvas::formatting::format_segment;
-use crate::state::AppState;
 use crate::canvas::update_canvas_content;
 use crate::dialogs::segment::edit_segment_if_applicable;
+use crate::state::AppState;
 use glib::clone;
 use gtk4::prelude::*;
-use gtk4::{Orientation, Label};
+use gtk4::{Label, Orientation};
 use std::sync::{Arc, Mutex};
-
 
 pub(crate) fn move_selected_segments_up(state: Arc<Mutex<AppState>>) {
     let mut app_state = state.lock().unwrap();
-    
+
     if !app_state.has_selection() {
         println!("No segments selected. Select segments first, then use Ctrl+Up to move them up.");
         return;
     }
-    
+
     // Save to undo history before making changes
     app_state.save_to_undo_history();
-    
+
     // Get selected segments sorted by position
     let selected: Vec<_> = app_state.selected_segments.iter().cloned().collect();
     let mut sorted_selected = selected.clone();
     sorted_selected.sort_by_key(|(day_idx, seg_idx)| (*day_idx, *seg_idx));
-    
+
     let mut moved_any = false;
-    
+
     if let Some(plan) = &mut app_state.current_plan {
         for (day_idx, seg_idx) in sorted_selected {
             if let Some(day) = plan.schedule.get_mut(day_idx) {
@@ -37,7 +36,7 @@ pub(crate) fn move_selected_segments_up(state: Arc<Mutex<AppState>>) {
             }
         }
     }
-    
+
     // Update selection positions after movement
     if moved_any {
         let mut new_selection = std::collections::HashSet::new();
@@ -50,8 +49,11 @@ pub(crate) fn move_selected_segments_up(state: Arc<Mutex<AppState>>) {
         }
         app_state.selected_segments = new_selection;
         app_state.mark_modified();
-        println!("Moved {} selected segments up", app_state.selected_segments.len());
-        
+        println!(
+            "Moved {} selected segments up",
+            app_state.selected_segments.len()
+        );
+
         // Update UI
         drop(app_state);
         update_canvas_content(state.clone());
@@ -62,22 +64,24 @@ pub(crate) fn move_selected_segments_up(state: Arc<Mutex<AppState>>) {
 
 pub(crate) fn move_selected_segments_down(state: Arc<Mutex<AppState>>) {
     let mut app_state = state.lock().unwrap();
-    
+
     if !app_state.has_selection() {
-        println!("No segments selected. Select segments first, then use Ctrl+Down to move them down.");
+        println!(
+            "No segments selected. Select segments first, then use Ctrl+Down to move them down."
+        );
         return;
     }
-    
+
     // Save to undo history before making changes
     app_state.save_to_undo_history();
-    
+
     // Get selected segments sorted by position (reverse order for down movement)
     let selected: Vec<_> = app_state.selected_segments.iter().cloned().collect();
     let mut sorted_selected = selected.clone();
     sorted_selected.sort_by_key(|(day_idx, seg_idx)| (*day_idx, std::cmp::Reverse(*seg_idx)));
-    
+
     let mut moved_any = false;
-    
+
     if let Some(plan) = &mut app_state.current_plan {
         for (day_idx, seg_idx) in sorted_selected {
             if let Some(day) = plan.schedule.get_mut(day_idx) {
@@ -89,12 +93,13 @@ pub(crate) fn move_selected_segments_down(state: Arc<Mutex<AppState>>) {
             }
         }
     }
-    
+
     // Update selection positions after movement
     if moved_any {
         let mut new_selection = std::collections::HashSet::new();
         for (day_idx, seg_idx) in &selected {
-            if *seg_idx < 100 { // Safety check for overflow
+            if *seg_idx < 100 {
+                // Safety check for overflow
                 new_selection.insert((*day_idx, seg_idx + 1));
             } else {
                 new_selection.insert((*day_idx, *seg_idx));
@@ -102,8 +107,11 @@ pub(crate) fn move_selected_segments_down(state: Arc<Mutex<AppState>>) {
         }
         app_state.selected_segments = new_selection;
         app_state.mark_modified();
-        println!("Moved {} selected segments down", app_state.selected_segments.len());
-        
+        println!(
+            "Moved {} selected segments down",
+            app_state.selected_segments.len()
+        );
+
         // Update UI
         drop(app_state);
         update_canvas_content(state.clone());
@@ -114,17 +122,17 @@ pub(crate) fn move_selected_segments_down(state: Arc<Mutex<AppState>>) {
 
 #[allow(dead_code)]
 pub(crate) fn delete_selected_segments_with_confirmation(state: Arc<Mutex<AppState>>) {
-    use gtk4::{Dialog, DialogFlags, ResponseType, Box as GtkBox};
-    
+    use gtk4::{Box as GtkBox, Dialog, DialogFlags, ResponseType};
+
     let app_state = state.lock().unwrap();
-    
+
     if !app_state.has_selection() {
         println!("No segments selected. Select segments first, then press Delete to remove them.");
         return;
     }
-    
+
     let selection_count = app_state.selected_segments.len();
-    
+
     // Collect information about selected segments for impact summary
     let mut impact_summary = String::new();
     if let Some(plan) = &app_state.current_plan {
@@ -137,16 +145,19 @@ pub(crate) fn delete_selected_segments_with_confirmation(state: Arc<Mutex<AppSta
             }
         }
     }
-    
+
     drop(app_state); // Release lock before showing dialog
-    
+
     let dialog = Dialog::with_buttons(
         Some("Confirm Deletion"),
         crate::ui::util::parent_for_dialog().as_ref(),
         DialogFlags::MODAL,
-        &[("Cancel", ResponseType::Cancel), ("Delete", ResponseType::Accept)]
+        &[
+            ("Cancel", ResponseType::Cancel),
+            ("Delete", ResponseType::Accept),
+        ],
     );
-    
+
     let content = GtkBox::builder()
         .orientation(Orientation::Vertical)
         .margin_start(20)
@@ -155,32 +166,39 @@ pub(crate) fn delete_selected_segments_with_confirmation(state: Arc<Mutex<AppSta
         .margin_bottom(20)
         .spacing(12)
         .build();
-    
+
     let warning_label = Label::builder()
-        .label(format!("⚠️ Delete {} segment{}?", selection_count, if selection_count == 1 { "" } else { "s" }))
+        .label(format!(
+            "⚠️ Delete {} segment{}?",
+            selection_count,
+            if selection_count == 1 { "" } else { "s" }
+        ))
         .css_classes(vec!["title-1".to_string()])
         .halign(gtk4::Align::Start)
         .build();
-    
+
     let impact_label = Label::builder()
-        .label(format!("This will permanently remove:\n\n{}", impact_summary))
+        .label(format!(
+            "This will permanently remove:\n\n{}",
+            impact_summary
+        ))
         .halign(gtk4::Align::Start)
         .wrap(true)
         .selectable(true)
         .build();
-    
+
     let undo_note = Label::builder()
         .label("💡 You can undo this action with Ctrl+Z")
         .css_classes(vec!["dim-label".to_string()])
         .halign(gtk4::Align::Start)
         .build();
-    
+
     content.append(&warning_label);
     content.append(&impact_label);
     content.append(&undo_note);
-    
+
     dialog.content_area().append(&content);
-    
+
     dialog.connect_response(clone!(@strong state => move |dialog, response| {
         if response == ResponseType::Accept {
             perform_segment_deletion(state.clone());
@@ -189,14 +207,14 @@ pub(crate) fn delete_selected_segments_with_confirmation(state: Arc<Mutex<AppSta
         }
         dialog.close();
     }));
-    
+
     dialog.present();
 }
 
 pub(crate) fn perform_segment_deletion(state: Arc<Mutex<AppState>>) {
     println!("DEBUG: Delete function called");
     let mut app_state = state.lock().unwrap();
-    
+
     // Determine what to delete: selected segments or focused segment
     let segments_to_delete = if app_state.has_selection() {
         println!("DEBUG: Deleting selected segments");
@@ -218,23 +236,23 @@ pub(crate) fn perform_segment_deletion(state: Arc<Mutex<AppState>>) {
             return;
         }
     };
-    
+
     if segments_to_delete.is_empty() {
         println!("No segments to delete.");
         return;
     }
-    
+
     // Save to undo history before making changes
     app_state.save_to_undo_history();
-    
+
     // Sort segments by position (reverse order for safe deletion)
     let mut sorted_segments = segments_to_delete.clone();
     sorted_segments.sort_by_key(|(day_idx, seg_idx)| (*day_idx, std::cmp::Reverse(*seg_idx)));
-    
+
     let mut deleted_count = 0;
     let was_selection = app_state.has_selection();
     let original_focused = app_state.focused_segment;
-    
+
     if let Some(plan) = &mut app_state.current_plan {
         for (day_idx, seg_idx) in sorted_segments {
             if let Some(day) = plan.schedule.get_mut(day_idx) {
@@ -245,11 +263,11 @@ pub(crate) fn perform_segment_deletion(state: Arc<Mutex<AppState>>) {
             }
         }
     }
-    
+
     // Update focus after deletions
     if let Some((focus_day, focus_seg)) = original_focused {
         let mut new_focus = Some((focus_day, focus_seg));
-        
+
         // Check if we deleted the focused segment or need to adjust focus
         for (day_idx, seg_idx) in &segments_to_delete {
             if (*day_idx, *seg_idx) == (focus_day, focus_seg) {
@@ -263,20 +281,24 @@ pub(crate) fn perform_segment_deletion(state: Arc<Mutex<AppState>>) {
                 }
             }
         }
-        
+
         app_state.focused_segment = new_focus;
     }
-    
+
     if deleted_count > 0 {
         app_state.mark_modified();
         if was_selection {
             app_state.clear_selection();
         }
-        
+
         let delete_type = if was_selection { "selected" } else { "focused" };
-        println!("Deleted {} {} segment{} - use Ctrl+Z to undo", 
-                deleted_count, delete_type, if deleted_count == 1 { "" } else { "s" });
-        
+        println!(
+            "Deleted {} {} segment{} - use Ctrl+Z to undo",
+            deleted_count,
+            delete_type,
+            if deleted_count == 1 { "" } else { "s" }
+        );
+
         // Update UI
         drop(app_state);
         update_canvas_content(state.clone());
@@ -286,53 +308,71 @@ pub(crate) fn perform_segment_deletion(state: Arc<Mutex<AppState>>) {
 }
 
 #[allow(dead_code)]
-pub(crate) fn toggle_segment_selection(state: Arc<Mutex<AppState>>, day_idx: usize, seg_idx: usize) {
+pub(crate) fn toggle_segment_selection(
+    state: Arc<Mutex<AppState>>,
+    day_idx: usize,
+    seg_idx: usize,
+) {
     let mut app_state = state.lock().unwrap();
     app_state.toggle_segment_selection(day_idx, seg_idx);
-    
+
     let selection_count = app_state.selected_segments.len();
     if selection_count > 0 {
-        println!("Selected {} segments (use Shift+Ctrl+Up/Down to reorder, Delete to remove)", selection_count);
+        println!(
+            "Selected {} segments (use Shift+Ctrl+Up/Down to reorder, Delete to remove)",
+            selection_count
+        );
         // Set focus to the toggled segment
         app_state.set_focused_segment(day_idx, seg_idx);
     } else {
         println!("Selection cleared");
     }
-    
+
     // Update UI to reflect selection changes
     drop(app_state);
     update_canvas_content(state.clone());
 }
 
 /// Handle exclusive selection (single click)
-pub(crate) fn select_segment_exclusively(state: Arc<Mutex<AppState>>, day_idx: usize, seg_idx: usize) {
+pub(crate) fn select_segment_exclusively(
+    state: Arc<Mutex<AppState>>,
+    day_idx: usize,
+    seg_idx: usize,
+) {
     let mut app_state = state.lock().unwrap();
     app_state.select_segment_exclusively(day_idx, seg_idx);
-    
+
     // Set focus to the selected segment
     app_state.set_focused_segment(day_idx, seg_idx);
-    
+
     println!("Selected segment (use Shift+Ctrl+Up/Down to reorder, Delete to remove)");
-    
+
     // Update UI to reflect selection changes
     drop(app_state);
     update_canvas_content(state.clone());
 }
 
 /// Handle toggle selection with Ctrl (Ctrl+Click)
-pub(crate) fn toggle_segment_selection_with_ctrl(state: Arc<Mutex<AppState>>, day_idx: usize, seg_idx: usize) {
+pub(crate) fn toggle_segment_selection_with_ctrl(
+    state: Arc<Mutex<AppState>>,
+    day_idx: usize,
+    seg_idx: usize,
+) {
     let mut app_state = state.lock().unwrap();
     app_state.toggle_segment_selection_with_ctrl(day_idx, seg_idx);
-    
+
     let selection_count = app_state.selected_segments.len();
     if selection_count > 0 {
-        println!("Selected {} segments (use Shift+Ctrl+Up/Down to reorder, Delete to remove)", selection_count);
+        println!(
+            "Selected {} segments (use Shift+Ctrl+Up/Down to reorder, Delete to remove)",
+            selection_count
+        );
         // Set focus to the toggled segment
         app_state.set_focused_segment(day_idx, seg_idx);
     } else {
         println!("Selection cleared");
     }
-    
+
     // Update UI to reflect selection changes
     drop(app_state);
     update_canvas_content(state.clone());
@@ -342,13 +382,16 @@ pub(crate) fn toggle_segment_selection_with_ctrl(state: Arc<Mutex<AppState>>, da
 pub(crate) fn select_segment_range(state: Arc<Mutex<AppState>>, day_idx: usize, seg_idx: usize) {
     let mut app_state = state.lock().unwrap();
     app_state.select_segment_range(day_idx, seg_idx);
-    
+
     let selection_count = app_state.selected_segments.len();
-    println!("Selected {} segments (use Shift+Ctrl+Up/Down to reorder, Delete to remove)", selection_count);
-    
+    println!(
+        "Selected {} segments (use Shift+Ctrl+Up/Down to reorder, Delete to remove)",
+        selection_count
+    );
+
     // Set focus to the range end segment
     app_state.set_focused_segment(day_idx, seg_idx);
-    
+
     // Update UI to reflect selection changes
     drop(app_state);
     update_canvas_content(state.clone());
@@ -356,17 +399,19 @@ pub(crate) fn select_segment_range(state: Arc<Mutex<AppState>>, day_idx: usize, 
 
 pub(crate) fn navigate_to_previous_segment(state: Arc<Mutex<AppState>>) {
     let mut app_state = state.lock().unwrap();
-    
+
     // Initialize focus if not set
     app_state.ensure_focus_initialized_with_days();
-    
+
     if let Some(plan) = &app_state.current_plan {
         // Determine current position in the unified flow
         let current_position = if let Some((day_idx, seg_idx)) = app_state.focused_segment {
             // Currently focused on a segment
             Some((day_idx, Some(seg_idx)))
-        } else { app_state.focused_day.map(|day_idx| (day_idx, None)) };
-        
+        } else {
+            app_state.focused_day.map(|day_idx| (day_idx, None))
+        };
+
         if let Some((current_day_idx, current_seg_option)) = current_position {
             // Find the previous item in the unified flow
             if let Some(current_seg_idx) = current_seg_option {
@@ -401,14 +446,18 @@ pub(crate) fn navigate_to_previous_segment(state: Arc<Mutex<AppState>>) {
             navigate_to_end_of_plan(&mut app_state);
         }
     }
-    
+
     // Update UI
     drop(app_state);
     update_canvas_content(state.clone());
 }
 
 // Helper function to navigate to the next day in the unified flow
-fn navigate_to_next_day_or_end(app_state: &mut AppState, current_day_idx: usize, plan_schedule_len: usize) {
+fn navigate_to_next_day_or_end(
+    app_state: &mut AppState,
+    current_day_idx: usize,
+    plan_schedule_len: usize,
+) {
     if current_day_idx + 1 < plan_schedule_len {
         let next_day_idx = current_day_idx + 1;
         app_state.set_focused_day(next_day_idx);
@@ -445,19 +494,21 @@ fn navigate_to_end_of_plan(app_state: &mut AppState) {
 
 pub(crate) fn navigate_to_next_segment(state: Arc<Mutex<AppState>>) {
     let mut app_state = state.lock().unwrap();
-    
+
     // Initialize focus if not set
     app_state.ensure_focus_initialized_with_days();
-    
+
     if let Some(plan) = &app_state.current_plan {
         let plan_schedule_len = plan.schedule.len();
-        
+
         // Determine current position in the unified flow
         let current_position = if let Some((day_idx, seg_idx)) = app_state.focused_segment {
             // Currently focused on a segment
             Some((day_idx, Some(seg_idx)))
-        } else { app_state.focused_day.map(|day_idx| (day_idx, None)) };
-        
+        } else {
+            app_state.focused_day.map(|day_idx| (day_idx, None))
+        };
+
         if let Some((current_day_idx, current_seg_option)) = current_position {
             // Find the next item in the unified flow
             if let Some(current_seg_idx) = current_seg_option {
@@ -468,7 +519,11 @@ pub(crate) fn navigate_to_next_segment(state: Arc<Mutex<AppState>>) {
                         app_state.set_focused_segment(current_day_idx, current_seg_idx + 1);
                     } else {
                         // Go to next day header or first segment of next day
-                        navigate_to_next_day_or_end(&mut app_state, current_day_idx, plan_schedule_len);
+                        navigate_to_next_day_or_end(
+                            &mut app_state,
+                            current_day_idx,
+                            plan_schedule_len,
+                        );
                     }
                 }
             } else {
@@ -479,7 +534,11 @@ pub(crate) fn navigate_to_next_segment(state: Arc<Mutex<AppState>>) {
                         app_state.set_focused_segment(current_day_idx, 0);
                     } else {
                         // Go to next day header or first segment of next day
-                        navigate_to_next_day_or_end(&mut app_state, current_day_idx, plan_schedule_len);
+                        navigate_to_next_day_or_end(
+                            &mut app_state,
+                            current_day_idx,
+                            plan_schedule_len,
+                        );
                     }
                 }
             }
@@ -488,7 +547,7 @@ pub(crate) fn navigate_to_next_segment(state: Arc<Mutex<AppState>>) {
             navigate_to_beginning_of_plan(&mut app_state);
         }
     }
-    
+
     // Update UI
     drop(app_state);
     update_canvas_content(state.clone());
@@ -496,10 +555,10 @@ pub(crate) fn navigate_to_next_segment(state: Arc<Mutex<AppState>>) {
 
 pub(crate) fn navigate_to_previous_day(state: Arc<Mutex<AppState>>) {
     let mut app_state = state.lock().unwrap();
-    
+
     // Initialize focus if not set
     app_state.ensure_focus_initialized();
-    
+
     if let Some((current_day_idx, _current_seg_idx)) = app_state.get_focused_segment() {
         if let Some(plan) = &app_state.current_plan {
             if current_day_idx > 0 {
@@ -508,7 +567,7 @@ pub(crate) fn navigate_to_previous_day(state: Arc<Mutex<AppState>>) {
                     if !prev_day.segments.is_empty() {
                         app_state.set_focused_segment(current_day_idx - 1, 0);
                         println!("Navigate to day {}", current_day_idx);
-                        
+
                         // Update UI
                         drop(app_state);
                         update_canvas_content(state.clone());
@@ -523,10 +582,10 @@ pub(crate) fn navigate_to_previous_day(state: Arc<Mutex<AppState>>) {
 
 pub(crate) fn navigate_to_next_day(state: Arc<Mutex<AppState>>) {
     let mut app_state = state.lock().unwrap();
-    
+
     // Initialize focus if not set
     app_state.ensure_focus_initialized();
-    
+
     if let Some((current_day_idx, _current_seg_idx)) = app_state.get_focused_segment() {
         if let Some(plan) = &app_state.current_plan {
             if current_day_idx + 1 < plan.schedule.len() {
@@ -535,7 +594,7 @@ pub(crate) fn navigate_to_next_day(state: Arc<Mutex<AppState>>) {
                     if !next_day.segments.is_empty() {
                         app_state.set_focused_segment(current_day_idx + 1, 0);
                         println!("Navigate to day {}", current_day_idx + 2);
-                        
+
                         // Update UI
                         drop(app_state);
                         update_canvas_content(state.clone());
@@ -550,13 +609,13 @@ pub(crate) fn navigate_to_next_day(state: Arc<Mutex<AppState>>) {
 
 pub(crate) fn edit_focused_segment(state: Arc<Mutex<AppState>>) {
     use crate::dialogs::day::show_edit_day_dialog;
-    
+
     // Initialize focus if not set
     {
         let mut app_state = state.lock().unwrap();
         app_state.ensure_focus_initialized_with_days();
     }
-    
+
     let app_state = state.lock().unwrap();
     if let Some(day_idx) = app_state.focused_day {
         // Edit day name when day is focused
@@ -588,7 +647,7 @@ pub(crate) fn edit_focused_segment(state: Arc<Mutex<AppState>>) {
 
 pub(crate) fn add_segment_to_focused_day(state: Arc<Mutex<AppState>>) {
     use crate::dialogs::segment::show_add_segment_to_day_dialog;
-    
+
     let app_state = state.lock().unwrap();
     let target_day_idx = if let Some(day_idx) = app_state.focused_day {
         Some(day_idx)
@@ -597,7 +656,7 @@ pub(crate) fn add_segment_to_focused_day(state: Arc<Mutex<AppState>>) {
     } else {
         None
     };
-    
+
     if let Some(day_idx) = target_day_idx {
         println!("Adding segment to day {}", day_idx + 1);
         drop(app_state);

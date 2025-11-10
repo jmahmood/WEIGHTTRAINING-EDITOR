@@ -1,7 +1,7 @@
 use crate::csv_parser::SessionRecord;
-use chrono::{NaiveDate, Datelike, Duration};
+use chrono::{Datelike, Duration, NaiveDate};
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, BTreeMap};
+use std::collections::{BTreeMap, HashMap};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -27,7 +27,7 @@ pub struct E1RMDataPoint {
 /// Weekly volume data aggregated by body part or exercise
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VolumeDataPoint {
-    pub category: String, // exercise code or body part
+    pub category: String,      // exercise code or body part
     pub week_start: NaiveDate, // Monday of the week
     pub total_sets: u32,
     pub total_reps: u32,
@@ -61,29 +61,29 @@ impl E1RMCalculator {
     pub fn new() -> Self {
         Self {}
     }
-    
+
     /// Calculate historical E1RM data from session records
     pub fn calculate_historical_e1rms(
         &self,
-        sessions: &[SessionRecord]
+        sessions: &[SessionRecord],
     ) -> Result<Vec<E1RMDataPoint>, MetricsError> {
         let mut e1rm_data = Vec::new();
-        
+
         for record in sessions {
             if !record.can_calculate_e1rm() {
                 continue;
             }
-            
+
             let reps = record.reps.unwrap();
             let weight_kg = self.convert_to_kg(record.weight.unwrap_or(0.0), &record.unit)?;
-            
+
             // Use Epley formula as default, with RPE adjustment if available
             let e1rm = if let Some(rpe) = record.rpe {
                 self.calculate_e1rm_with_rpe(weight_kg, reps, rpe)
             } else {
                 self.calculate_epley_e1rm(weight_kg, reps)
             };
-            
+
             e1rm_data.push(E1RMDataPoint {
                 exercise: record.ex_code.clone(),
                 date: record.date,
@@ -91,18 +91,22 @@ impl E1RMCalculator {
                 source_weight: weight_kg,
                 source_reps: reps,
                 source_rpe: record.rpe,
-                formula: if record.rpe.is_some() { "epley_rpe".to_string() } else { "epley".to_string() },
+                formula: if record.rpe.is_some() {
+                    "epley_rpe".to_string()
+                } else {
+                    "epley".to_string()
+                },
             });
         }
-        
+
         Ok(e1rm_data)
     }
-    
+
     /// Epley formula: 1RM = weight * (1 + reps/30)
     fn calculate_epley_e1rm(&self, weight: f64, reps: u32) -> f64 {
         weight * (1.0 + (reps as f64 / 30.0))
     }
-    
+
     /// Enhanced Epley with RPE adjustment
     fn calculate_e1rm_with_rpe(&self, weight: f64, reps: u32, rpe: f64) -> f64 {
         // RPE adjustment: higher RPE means closer to true max
@@ -115,11 +119,11 @@ impl E1RMCalculator {
             r if r >= 7.5 => 0.88,
             _ => 0.85,
         };
-        
+
         let base_e1rm = self.calculate_epley_e1rm(weight, reps);
         base_e1rm / rpe_adjustment
     }
-    
+
     /// Convert weight to kg based on unit
     fn convert_to_kg(&self, weight: f64, unit: &str) -> Result<f64, MetricsError> {
         match unit {
@@ -129,8 +133,8 @@ impl E1RMCalculator {
                 // For bodyweight exercises, we'd need user bodyweight
                 // For now, assume 75kg average - this could be configurable
                 Ok(75.0)
-            },
-            _ => Err(MetricsError::InvalidData(format!("Unknown unit: {}", unit)))
+            }
+            _ => Err(MetricsError::InvalidData(format!("Unknown unit: {}", unit))),
         }
     }
 }
@@ -150,52 +154,58 @@ impl VolumeCalculator {
     pub fn new() -> Self {
         Self {}
     }
-    
+
     /// Calculate weekly volume data from session records
     pub fn calculate_weekly_volumes(
         &self,
-        sessions: &[SessionRecord]
+        sessions: &[SessionRecord],
     ) -> Result<Vec<VolumeDataPoint>, MetricsError> {
         // Group by exercise and week
         let mut weekly_data: BTreeMap<(String, NaiveDate), VolumeAggregator> = BTreeMap::new();
-        let mut session_counts: BTreeMap<(String, NaiveDate), std::collections::HashSet<String>> = BTreeMap::new();
-        
+        let mut session_counts: BTreeMap<(String, NaiveDate), std::collections::HashSet<String>> =
+            BTreeMap::new();
+
         for record in sessions {
             if !record.is_working_set() {
                 continue;
             }
-            
+
             let week_start = self.get_week_start(record.date);
             let exercise = record.ex_code.clone();
             let key = (exercise.clone(), week_start);
-            
-            let aggregator = weekly_data.entry(key.clone()).or_insert(VolumeAggregator::new());
-            
+
+            let aggregator = weekly_data
+                .entry(key.clone())
+                .or_insert(VolumeAggregator::new());
+
             // Add set data
             aggregator.total_sets += 1;
-            
+
             if let Some(reps) = record.reps {
                 aggregator.total_reps += reps;
-                
+
                 // Calculate tonnage if we have weight
                 if let Some(weight) = record.weight {
                     let weight_kg = self.convert_to_kg(weight, &record.unit)?;
                     aggregator.total_tonnage_kg += weight_kg * (reps as f64);
                 }
             }
-            
+
             // Track unique sessions
-            session_counts.entry(key.clone()).or_default()
+            session_counts
+                .entry(key.clone())
+                .or_default()
                 .insert(record.session_id.clone());
         }
-        
+
         // Convert to output format
         let mut volume_data = Vec::new();
         for ((exercise, week_start), aggregator) in weekly_data {
-            let session_count = session_counts.get(&(exercise.clone(), week_start))
+            let session_count = session_counts
+                .get(&(exercise.clone(), week_start))
                 .map(|set| set.len() as u32)
                 .unwrap_or(0);
-                
+
             volume_data.push(VolumeDataPoint {
                 category: exercise,
                 week_start,
@@ -205,23 +215,23 @@ impl VolumeCalculator {
                 session_count,
             });
         }
-        
+
         Ok(volume_data)
     }
-    
+
     /// Get the Monday of the week for a given date
     fn get_week_start(&self, date: NaiveDate) -> NaiveDate {
         let days_from_monday = date.weekday().num_days_from_monday() as i64;
         date - Duration::days(days_from_monday)
     }
-    
+
     /// Convert weight to kg (reused from E1RMCalculator)
     fn convert_to_kg(&self, weight: f64, unit: &str) -> Result<f64, MetricsError> {
         match unit {
             "kg" => Ok(weight),
             "lb" => Ok(weight * 0.453592),
             "bw" => Ok(75.0), // Default bodyweight
-            _ => Err(MetricsError::InvalidData(format!("Unknown unit: {}", unit)))
+            _ => Err(MetricsError::InvalidData(format!("Unknown unit: {}", unit))),
         }
     }
 }
@@ -258,33 +268,36 @@ impl PRTracker {
     pub fn new() -> Self {
         Self {}
     }
-    
+
     /// Identify personal records from session data
-    pub fn identify_prs(&self, sessions: &[SessionRecord]) -> Result<Vec<PRDataPoint>, MetricsError> {
+    pub fn identify_prs(
+        &self,
+        sessions: &[SessionRecord],
+    ) -> Result<Vec<PRDataPoint>, MetricsError> {
         let mut pr_data = Vec::new();
-        
+
         // Group by exercise and track max weights for different rep ranges
         let mut exercise_maxes: HashMap<String, HashMap<u32, (f64, NaiveDate)>> = HashMap::new();
-        
+
         for record in sessions {
             if !record.can_calculate_e1rm() {
                 continue;
             }
-            
+
             let reps = record.reps.unwrap();
             let weight_kg = self.convert_to_kg(record.weight.unwrap_or(0.0), &record.unit)?;
-            
+
             let exercise_entry = exercise_maxes.entry(record.ex_code.clone()).or_default();
-            
+
             // Check if this is a new PR for this rep count
             let is_pr = match exercise_entry.get(&reps) {
                 Some((current_max, _)) => weight_kg > *current_max,
                 None => true, // First time doing this rep count
             };
-            
+
             if is_pr {
                 exercise_entry.insert(reps, (weight_kg, record.date));
-                
+
                 // Determine PR type
                 let pr_type = match reps {
                     1 => "1RM".to_string(),
@@ -293,7 +306,7 @@ impl PRTracker {
                     7..=12 => "Volume".to_string(),
                     _ => "Endurance".to_string(),
                 };
-                
+
                 pr_data.push(PRDataPoint {
                     exercise: record.ex_code.clone(),
                     pr_type,
@@ -304,17 +317,17 @@ impl PRTracker {
                 });
             }
         }
-        
+
         Ok(pr_data)
     }
-    
+
     /// Convert weight to kg (reused from other calculators)
     fn convert_to_kg(&self, weight: f64, unit: &str) -> Result<f64, MetricsError> {
         match unit {
             "kg" => Ok(weight),
             "lb" => Ok(weight * 0.453592),
             "bw" => Ok(75.0), // Default bodyweight
-            _ => Err(MetricsError::InvalidData(format!("Unknown unit: {}", unit)))
+            _ => Err(MetricsError::InvalidData(format!("Unknown unit: {}", unit))),
         }
     }
 }
@@ -327,21 +340,21 @@ mod tests {
     #[test]
     fn test_epley_calculation() {
         let calc = E1RMCalculator::new();
-        
+
         // 100kg x 5 reps should give ~116.7kg 1RM
         let e1rm = calc.calculate_epley_e1rm(100.0, 5);
         assert!((e1rm - 116.67).abs() < 0.1);
     }
-    
+
     #[test]
     fn test_week_start_calculation() {
         let calc = VolumeCalculator::new();
-        
+
         // Test various days of week
         let tuesday = NaiveDate::from_ymd_opt(2025, 8, 19).unwrap(); // Tuesday
         let monday = calc.get_week_start(tuesday);
         assert_eq!(monday, NaiveDate::from_ymd_opt(2025, 8, 18).unwrap()); // Previous Monday
-        
+
         let friday = NaiveDate::from_ymd_opt(2025, 8, 22).unwrap(); // Friday
         let monday = calc.get_week_start(friday);
         assert_eq!(monday, NaiveDate::from_ymd_opt(2025, 8, 18).unwrap()); // Same Monday

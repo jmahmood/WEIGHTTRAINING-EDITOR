@@ -3,16 +3,47 @@ import SwiftUI
 struct MainWindowView: View {
     @EnvironmentObject var appState: AppState
     @Binding var document: WeightliftingDocument
+    @Environment(\.undoManager) private var undoManager
+    @State private var splitVisibility: NavigationSplitViewVisibility = .all
+
+    private let sidebarWidth: CGFloat = 260
 
     var body: some View {
-        HSplitView {
-            // Canvas (main editing area)
-            CanvasView(plan: document.planDocument)
-                .frame(minWidth: 400, idealWidth: 600)
+        ZStack {
+            NavigationSplitView(columnVisibility: $splitVisibility) {
+                ExerciseSidebarView(plan: document.planDocument)
+                    .environmentObject(appState)
+                    .frame(minWidth: sidebarWidth, maxWidth: sidebarWidth)
+                    .navigationSplitViewColumnWidth(sidebarWidth)
+            } content: {
+                CanvasView(plan: document.planDocument)
+                    .environmentObject(appState)
+                    .frame(minWidth: 520)
+                    .layoutPriority(1)
+                    .navigationSplitViewColumnWidth(min: 520, ideal: 0, max: .infinity)
+            } detail: {
+                InspectorView(plan: document.planDocument)
+                    .environmentObject(appState)
+                    .frame(minWidth: 320, idealWidth: 360, maxWidth: 440)
+                    .navigationSplitViewColumnWidth(min: 320, ideal: 360, max: 440)
+            }
 
-            // Right panel (exercises and groups)
-            RightPanelView(plan: document.planDocument)
-                .frame(minWidth: 250, idealWidth: 300, maxWidth: 400)
+            // Hidden buttons to capture Tab navigation
+            VStack {
+                Button("") {
+                    appState.shouldFocusInspector = true
+                }
+                .keyboardShortcut(.tab, modifiers: [])
+                .hidden()
+                .frame(width: 0, height: 0)
+
+                Button("") {
+                    appState.shouldFocusCanvas = true
+                }
+                .keyboardShortcut(.tab, modifiers: [.shift])
+                .hidden()
+                .frame(width: 0, height: 0)
+            }
         }
         .navigationTitle(document.planDocument.name)
         .navigationSubtitle(documentSubtitle)
@@ -40,6 +71,17 @@ struct MainWindowView: View {
                 plan: document.planDocument,
                 onSave: { /* Groups are updated directly via FFI */ }
             )
+        }
+        .sheet(item: $appState.previewToken) { token in
+            SegmentPreviewSheet(plan: document.planDocument, token: token)
+        }
+        .onAppear {
+            appState.activePlan = document.planDocument
+        }
+        .onDisappear {
+            if appState.activePlan === document.planDocument {
+                appState.activePlan = nil
+            }
         }
     }
 
@@ -72,6 +114,7 @@ struct MainWindowView: View {
         do {
             if let segmentIndex = appState.editingSegmentIndex {
                 // Update existing segment
+                appState.pushUndo(document.planDocument.planJSON, label: "Edit Segment")
                 try document.planDocument.updateSegment(
                     segmentJSON,
                     at: segmentIndex,
@@ -79,7 +122,12 @@ struct MainWindowView: View {
                 )
             } else {
                 // Add new segment
+                appState.pushUndo(document.planDocument.planJSON, label: "Add Segment")
                 try document.planDocument.addSegment(segmentJSON, toDayAt: dayIndex)
+                if document.planDocument.days.indices.contains(dayIndex) {
+                    let newIndex = document.planDocument.days[dayIndex].segmentCount - 1
+                    appState.markRecentlyAddedSegment(dayIndex: dayIndex, segmentIndex: newIndex)
+                }
             }
             appState.showSegmentEditor = false
         } catch {

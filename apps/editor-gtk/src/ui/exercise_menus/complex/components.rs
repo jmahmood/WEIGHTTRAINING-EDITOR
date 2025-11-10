@@ -1,11 +1,13 @@
 use crate::ui::widgets::ExerciseSearchWidget;
-use gtk4::{Expander, Entry};
 use gtk4::prelude::EditableExt;
+use gtk4::{Entry, Expander};
 
 // Shared helper to build the exercise search section used by complex dialogs
 pub fn create_exercise_search_section_complex() -> (Expander, Entry, Entry, ExerciseSearchWidget) {
     let search_widget = ExerciseSearchWidget::new();
-    if let Err(e) = search_widget.set_database_path("/home/jawaad/weightlifting-desktop/exercises.db") {
+    if let Err(e) =
+        search_widget.set_database_path("/home/jawaad/weightlifting-desktop/exercises.db")
+    {
         println!("Failed to connect to exercise database: {}", e);
     }
 

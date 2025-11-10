@@ -193,6 +193,21 @@ class RustBridge {
         return data
     }
 
+    /// Add or update a dictionary entry, returns updated plan JSON
+    static func addExercise(code: String, name: String, to planJSON: String) throws -> String {
+        let cPlan = planJSON.cString(using: .utf8)!
+        let cCode = code.cString(using: .utf8)!
+        let cName = name.cString(using: .utf8)!
+
+        let result = FFIResultWrapper(from: ffi_dictionary_add_entry(cPlan, cCode, cName))
+
+        guard result.success, let data = result.data else {
+            throw RustBridgeError.ffiError(result.error ?? "Unknown error adding exercise")
+        }
+
+        return data
+    }
+
     // MARK: - Platform Paths
 
     static func getAppSupportDir() throws -> String {

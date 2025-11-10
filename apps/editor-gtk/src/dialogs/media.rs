@@ -1,15 +1,21 @@
-use gtk4::{Dialog, DialogFlags, ResponseType, Box as GtkBox, Label, Entry, CheckButton, FileFilter, FileChooserAction, FileChooserWidget, Orientation};
-use gtk4::prelude::*;
 use gtk4::gio;
-use weightlifting_core::{MediaAttachmentWriter, SetKey, AppPaths};
+use gtk4::prelude::*;
+use gtk4::{
+    Box as GtkBox, CheckButton, Dialog, DialogFlags, Entry, FileChooserAction, FileChooserWidget,
+    FileFilter, Label, Orientation, ResponseType,
+};
 use std::sync::Arc;
+use weightlifting_core::{AppPaths, MediaAttachmentWriter, SetKey};
 
 pub fn show_attach_media_dialog(paths: Arc<AppPaths>) {
     let dialog = Dialog::with_buttons(
         Some("Attach Media to Sets"),
         crate::ui::util::parent_for_dialog().as_ref(),
         DialogFlags::MODAL,
-        &[("Cancel", ResponseType::Cancel), ("Apply", ResponseType::Accept)]
+        &[
+            ("Cancel", ResponseType::Cancel),
+            ("Apply", ResponseType::Accept),
+        ],
     );
     crate::ui::util::standardize_dialog(&dialog);
 
@@ -22,15 +28,24 @@ pub fn show_attach_media_dialog(paths: Arc<AppPaths>) {
         .spacing(12)
         .build();
 
-    let session_label = Label::builder().label("Session ID").halign(gtk4::Align::Start).build();
+    let session_label = Label::builder()
+        .label("Session ID")
+        .halign(gtk4::Align::Start)
+        .build();
     let session_entry = Entry::new();
     session_entry.set_placeholder_text(Some("e.g., 2025-08-14T09-35-00Z-001"));
 
-    let ex_label = Label::builder().label("Exercise Code").halign(gtk4::Align::Start).build();
+    let ex_label = Label::builder()
+        .label("Exercise Code")
+        .halign(gtk4::Align::Start)
+        .build();
     let ex_entry = Entry::new();
     ex_entry.set_placeholder_text(Some("e.g., BP.BB.FLAT"));
 
-    let setnums_label = Label::builder().label("Set Numbers").halign(gtk4::Align::Start).build();
+    let setnums_label = Label::builder()
+        .label("Set Numbers")
+        .halign(gtk4::Align::Start)
+        .build();
     let setnums_entry = Entry::new();
     setnums_entry.set_placeholder_text(Some("e.g., 1,2,4-6"));
 
@@ -123,12 +138,18 @@ fn parse_set_numbers(input: &str) -> Result<Vec<u32>, ()> {
     let mut out = Vec::new();
     for part in input.split(',') {
         let p = part.trim();
-        if p.is_empty() { continue; }
+        if p.is_empty() {
+            continue;
+        }
         if let Some((a, b)) = p.split_once('-') {
             let start: u32 = a.trim().parse().map_err(|_| ())?;
             let end: u32 = b.trim().parse().map_err(|_| ())?;
-            if start > end { return Err(()); }
-            for n in start..=end { out.push(n); }
+            if start > end {
+                return Err(());
+            }
+            for n in start..=end {
+                out.push(n);
+            }
         } else {
             let n: u32 = p.parse().map_err(|_| ())?;
             out.push(n);
@@ -143,7 +164,7 @@ fn show_error(message: &str) {
         Some("Error"),
         crate::ui::util::parent_for_dialog().as_ref(),
         DialogFlags::MODAL,
-        &[("OK", ResponseType::Ok)]
+        &[("OK", ResponseType::Ok)],
     );
     crate::ui::util::standardize_dialog(&d);
     let lbl = Label::builder().label(message).wrap(true).build();

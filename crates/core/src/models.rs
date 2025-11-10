@@ -353,7 +353,6 @@ pub struct CommentSegment {
     pub icon: Option<String>,
 }
 
-
 /// Common data types
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Range {
@@ -502,19 +501,19 @@ pub struct GroupState {
     /// For choose groups - tracks last selected item
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_choice_item_id: Option<String>,
-    
+
     /// For choose groups - selection history
     #[serde(skip_serializing_if = "Option::is_none")]
     pub choice_history: Option<Vec<String>>,
-    
+
     /// For rotate groups - current rotation index
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rotation_index: Option<u32>,
-    
+
     /// For optional groups - enabled by default flag
     #[serde(skip_serializing_if = "Option::is_none")]
     pub enabled_by_default: Option<bool>,
-    
+
     /// For optional groups - last used timestamp for analytics
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_used: Option<String>, // ISO 8601 timestamp
@@ -558,7 +557,7 @@ pub struct GroupSupersetSegment {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TimeInterval {
     pub work: u32,    // work duration in seconds
-    pub rest: u32,    // rest duration in seconds  
+    pub rest: u32,    // rest duration in seconds
     pub repeats: u32, // number of work/rest cycles
 }
 
@@ -599,7 +598,7 @@ impl GroupState {
             last_used: None,
         }
     }
-    
+
     pub fn for_choose() -> Self {
         Self {
             last_choice_item_id: None,
@@ -609,7 +608,7 @@ impl GroupState {
             last_used: None,
         }
     }
-    
+
     pub fn for_rotate() -> Self {
         Self {
             last_choice_item_id: None,
@@ -619,7 +618,7 @@ impl GroupState {
             last_used: None,
         }
     }
-    
+
     pub fn for_optional() -> Self {
         Self {
             last_choice_item_id: None,
@@ -688,9 +687,9 @@ pub struct TimeSegment {
 /// Interval specification for time-based training
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Interval {
-    pub work_sec: u32,        // Work period in seconds
-    pub rest_sec: u32,        // Rest period in seconds  
-    pub repeats: u32,         // Number of work/rest cycles
+    pub work_sec: u32, // Work period in seconds
+    pub rest_sec: u32, // Rest period in seconds
+    pub repeats: u32,  // Number of work/rest cycles
     #[serde(skip_serializing_if = "Option::is_none")]
     pub warmup_sec: Option<u32>, // Optional warmup period
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -714,7 +713,7 @@ impl TimeSegment {
             load_mode: None,
         }
     }
-    
+
     /// Calculate total duration including warmup, work periods, rest periods, and cooldown
     pub fn total_duration_sec(&self) -> u32 {
         if let Some(ref interval) = self.interval {
@@ -726,7 +725,7 @@ impl TimeSegment {
             0
         }
     }
-    
+
     /// Calculate total work time (excluding rest periods)
     pub fn total_work_sec(&self) -> u32 {
         if let Some(ref interval) = self.interval {

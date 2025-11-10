@@ -1,9 +1,9 @@
 // Group search widget for selecting exercise groups
 // Supports real-time search through group names and member exercises
 
-use gtk4::prelude::*;
-use gtk4::{Entry, ListBox, ListBoxRow, Label, Box, Orientation, ScrolledWindow, GestureClick};
 use crate::state::AppState;
+use gtk4::prelude::*;
+use gtk4::{Box, Entry, GestureClick, Label, ListBox, ListBoxRow, Orientation, ScrolledWindow};
 use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Clone)]
@@ -56,13 +56,13 @@ impl GroupSearchWidget {
         widget.populate_initial_results();
         widget
     }
-    
+
     fn clear_results_list(list_box: &ListBox) {
         while let Some(child) = list_box.first_child() {
             list_box.remove(&child);
         }
     }
-    
+
     fn setup_signals(&self) {
         let search_entry = self.search_entry.clone();
         let results_list = self.results_list.clone();
@@ -82,16 +82,26 @@ impl GroupSearchWidget {
             }
         });
     }
-    
+
     fn populate_initial_results(&self) {
-        Self::populate_all_groups(&self.results_list, self.state.clone(), self.current_group.as_ref());
+        Self::populate_all_groups(
+            &self.results_list,
+            self.state.clone(),
+            self.current_group.as_ref(),
+        );
     }
-    
-    fn populate_all_groups(results_list: &ListBox, state: Arc<Mutex<AppState>>, current_group: Option<&String>) {
+
+    fn populate_all_groups(
+        results_list: &ListBox,
+        state: Arc<Mutex<AppState>>,
+        current_group: Option<&String>,
+    ) {
         let state_lock = state.lock().unwrap();
         if let Some(plan) = &state_lock.current_plan {
             // Collect all groups into a vector for sorting
-            let mut groups: Vec<(String, Vec<String>)> = plan.groups.iter()
+            let mut groups: Vec<(String, Vec<String>)> = plan
+                .groups
+                .iter()
                 .map(|(k, v)| (k.clone(), v.clone()))
                 .collect();
 
@@ -116,11 +126,20 @@ impl GroupSearchWidget {
                     exercise_count: exercises.len(),
                     exercises: exercises.clone(),
                 };
-                let names: Vec<String> = exercises.iter().take(4).map(|code| {
-                    plan.dictionary.get(code).cloned().unwrap_or_else(|| code.clone())
-                }).collect();
+                let names: Vec<String> = exercises
+                    .iter()
+                    .take(4)
+                    .map(|code| {
+                        plan.dictionary
+                            .get(code)
+                            .cloned()
+                            .unwrap_or_else(|| code.clone())
+                    })
+                    .collect();
                 let mut preview = names.join(", ");
-                if exercises.len() > 4 { preview.push_str(", …"); }
+                if exercises.len() > 4 {
+                    preview.push_str(", …");
+                }
 
                 let is_current = current_group.map_or(false, |cg| &group_name == cg);
                 let row = Self::create_result_row(&result, Some(preview), is_current);
@@ -128,8 +147,13 @@ impl GroupSearchWidget {
             }
         }
     }
-    
-    fn search_groups(results_list: &ListBox, state: Arc<Mutex<AppState>>, query: &str, current_group: Option<&String>) {
+
+    fn search_groups(
+        results_list: &ListBox,
+        state: Arc<Mutex<AppState>>,
+        query: &str,
+        current_group: Option<&String>,
+    ) {
         let state_lock = state.lock().unwrap();
         if let Some(plan) = &state_lock.current_plan {
             // Collect matching groups first
@@ -191,11 +215,20 @@ impl GroupSearchWidget {
                     exercise_count: exercises.len(),
                     exercises: exercises.clone(),
                 };
-                let names: Vec<String> = exercises.iter().take(4).map(|code| {
-                    plan.dictionary.get(code).cloned().unwrap_or_else(|| code.clone())
-                }).collect();
+                let names: Vec<String> = exercises
+                    .iter()
+                    .take(4)
+                    .map(|code| {
+                        plan.dictionary
+                            .get(code)
+                            .cloned()
+                            .unwrap_or_else(|| code.clone())
+                    })
+                    .collect();
                 let mut preview = names.join(", ");
-                if exercises.len() > 4 { preview.push_str(", …"); }
+                if exercises.len() > 4 {
+                    preview.push_str(", …");
+                }
 
                 let is_current = current_group.map_or(false, |cg| &group_name == cg);
                 let row = Self::create_result_row(&result, Some(preview), is_current);
@@ -203,8 +236,12 @@ impl GroupSearchWidget {
             }
         }
     }
-    
-    fn create_result_row(result: &GroupResult, preview: Option<String>, is_current: bool) -> ListBoxRow {
+
+    fn create_result_row(
+        result: &GroupResult,
+        preview: Option<String>,
+        is_current: bool,
+    ) -> ListBoxRow {
         let row = ListBoxRow::new();
         let box_ = Box::new(Orientation::Vertical, 5);
         box_.set_margin_start(10);
@@ -244,17 +281,19 @@ impl GroupSearchWidget {
 
         row
     }
-    
+
     pub fn connect_row_activated<F: Fn(&GroupResult) + 'static>(&self, f: F) {
         let results_list = self.results_list.clone();
         let state = self.state.clone();
-        
+
         results_list.connect_row_activated(move |_, row| {
             if let Some(box_) = row.child() {
                 if let Some(box_) = box_.downcast_ref::<Box>() {
-                    if let Some(name_label) = box_.first_child().and_then(|c| c.downcast::<Label>().ok()) {
+                    if let Some(name_label) =
+                        box_.first_child().and_then(|c| c.downcast::<Label>().ok())
+                    {
                         let group_name = name_label.text().to_string();
-                        
+
                         // Get group details from state
                         let state_lock = state.lock().unwrap();
                         if let Some(plan) = &state_lock.current_plan {
@@ -272,15 +311,17 @@ impl GroupSearchWidget {
             }
         });
     }
-    
+
     #[allow(dead_code)]
     pub fn selected_group(&self) -> Option<GroupResult> {
         if let Some(row) = self.results_list.selected_row() {
             if let Some(box_) = row.child() {
                 if let Some(box_) = box_.downcast_ref::<Box>() {
-                    let name_label = box_.first_child().and_then(|c| c.downcast::<Label>().ok())?;
+                    let name_label = box_
+                        .first_child()
+                        .and_then(|c| c.downcast::<Label>().ok())?;
                     let group_name = name_label.text().to_string();
-                    
+
                     // Get group details from state
                     let state_lock = self.state.lock().unwrap();
                     if let Some(plan) = &state_lock.current_plan {
@@ -297,16 +338,25 @@ impl GroupSearchWidget {
         }
         None
     }
-    
+
     #[allow(dead_code)]
     pub fn refresh(&self) {
         let query = self.search_entry.text().to_string().to_lowercase();
         Self::clear_results_list(&self.results_list);
 
         if query.is_empty() {
-            Self::populate_all_groups(&self.results_list, self.state.clone(), self.current_group.as_ref());
+            Self::populate_all_groups(
+                &self.results_list,
+                self.state.clone(),
+                self.current_group.as_ref(),
+            );
         } else {
-            Self::search_groups(&self.results_list, self.state.clone(), &query, self.current_group.as_ref());
+            Self::search_groups(
+                &self.results_list,
+                self.state.clone(),
+                &query,
+                self.current_group.as_ref(),
+            );
         }
     }
 
@@ -314,7 +364,11 @@ impl GroupSearchWidget {
     pub fn clear_search(&self) {
         self.search_entry.set_text("");
         Self::clear_results_list(&self.results_list);
-        Self::populate_all_groups(&self.results_list, self.state.clone(), self.current_group.as_ref());
+        Self::populate_all_groups(
+            &self.results_list,
+            self.state.clone(),
+            self.current_group.as_ref(),
+        );
     }
 
     /// Enable right-click on group rows to open the group editor dialog

@@ -1,12 +1,17 @@
-use gtk4::{Dialog, DialogFlags, ResponseType, Box as GtkBox, Orientation, Label, Button, Entry, ComboBoxText};
-use gtk4::prelude::*;
 use glib::clone;
+use gtk4::prelude::*;
+use gtk4::{
+    Box as GtkBox, Button, ComboBoxText, Dialog, DialogFlags, Entry, Label, Orientation,
+    ResponseType,
+};
 use std::sync::{Arc, Mutex};
 use weightlifting_core::AppPaths;
 use weightlifting_validate::PlanValidator;
 
+use crate::operations::fixes::{
+    ensure_dictionary_entry, rename_exercise_code, replace_exercise_references,
+};
 use crate::state::AppState;
-use crate::operations::fixes::{replace_exercise_references, rename_exercise_code, ensure_dictionary_entry};
 
 pub fn show_validation_dialog(state: Arc<Mutex<AppState>>, _paths: Arc<AppPaths>) {
     let has_plan = {
@@ -22,20 +27,28 @@ pub fn show_validation_dialog(state: Arc<Mutex<AppState>>, _paths: Arc<AppPaths>
         Some("Validate Plan"),
         crate::ui::util::parent_for_dialog().as_ref(),
         DialogFlags::MODAL,
-        &[("Close", ResponseType::Close)]
+        &[("Close", ResponseType::Close)],
     );
     crate::ui::util::standardize_dialog(&dialog);
 
     let content = GtkBox::builder()
         .orientation(Orientation::Vertical)
-        .margin_start(20).margin_end(20).margin_top(20).margin_bottom(20)
+        .margin_start(20)
+        .margin_end(20)
+        .margin_top(20)
+        .margin_bottom(20)
         .spacing(10)
         .build();
 
-    let header = Label::builder().label("Issues found. Click Fix to resolve common problems before saving.").build();
+    let header = Label::builder()
+        .label("Issues found. Click Fix to resolve common problems before saving.")
+        .build();
     content.append(&header);
 
-    let list = GtkBox::builder().orientation(Orientation::Vertical).spacing(6).build();
+    let list = GtkBox::builder()
+        .orientation(Orientation::Vertical)
+        .spacing(6)
+        .build();
     repopulate_validation(&list, &header, state.clone());
     content.append(&list);
 
@@ -46,7 +59,9 @@ pub fn show_validation_dialog(state: Arc<Mutex<AppState>>, _paths: Arc<AppPaths>
 
 fn repopulate_validation(list: &GtkBox, header: &Label, state: Arc<Mutex<AppState>>) {
     // Clear existing rows
-    while let Some(ch) = list.first_child() { list.remove(&ch); }
+    while let Some(ch) = list.first_child() {
+        list.remove(&ch);
+    }
     let validator = PlanValidator::new().expect("validator");
     let res = {
         let s = state.lock().unwrap();
@@ -59,8 +74,15 @@ fn repopulate_validation(list: &GtkBox, header: &Label, state: Arc<Mutex<AppStat
             return;
         }
         for err in res.errors {
-            let row = GtkBox::builder().orientation(Orientation::Horizontal).spacing(8).build();
-            let msg = Label::builder().label(format!("{} @ {}", err.message, err.path)).halign(gtk4::Align::Start).hexpand(true).build();
+            let row = GtkBox::builder()
+                .orientation(Orientation::Horizontal)
+                .spacing(8)
+                .build();
+            let msg = Label::builder()
+                .label(format!("{} @ {}", err.message, err.path))
+                .halign(gtk4::Align::Start)
+                .hexpand(true)
+                .build();
             row.append(&msg);
             match err.code.as_str() {
                 "E102" => {
@@ -70,7 +92,13 @@ fn repopulate_validation(list: &GtkBox, header: &Label, state: Arc<Mutex<AppStat
                     let list_c = list.clone();
                     let header_c = header.clone();
                     fix_btn.connect_clicked(move |_| {
-                        show_fix_unknown_ex_dialog_refresh(st.clone(), None, bad_code.clone(), &list_c, &header_c);
+                        show_fix_unknown_ex_dialog_refresh(
+                            st.clone(),
+                            None,
+                            bad_code.clone(),
+                            &list_c,
+                            &header_c,
+                        );
                     });
                     row.append(&fix_btn);
                 }
@@ -82,7 +110,13 @@ fn repopulate_validation(list: &GtkBox, header: &Label, state: Arc<Mutex<AppStat
                     let list_c = list.clone();
                     let header_c = header.clone();
                     fix_btn.connect_clicked(move |_| {
-                        show_fix_unknown_ex_dialog_refresh(st.clone(), group_name.clone(), bad_code.clone(), &list_c, &header_c);
+                        show_fix_unknown_ex_dialog_refresh(
+                            st.clone(),
+                            group_name.clone(),
+                            bad_code.clone(),
+                            &list_c,
+                            &header_c,
+                        );
                     });
                     row.append(&fix_btn);
                 }
@@ -104,19 +138,38 @@ fn repopulate_validation(list: &GtkBox, header: &Label, state: Arc<Mutex<AppStat
     }
 }
 
-fn show_fix_unknown_ex_dialog_refresh(state: Arc<Mutex<AppState>>, group_name: Option<String>, bad_code: Option<String>, list: &GtkBox, header: &Label) {
+fn show_fix_unknown_ex_dialog_refresh(
+    state: Arc<Mutex<AppState>>,
+    group_name: Option<String>,
+    bad_code: Option<String>,
+    list: &GtkBox,
+    header: &Label,
+) {
     // Small dialog offering replace-with-existing or add-to-dictionary
     let dlg = Dialog::with_buttons(
         Some("Fix Unknown Exercise"),
         crate::ui::util::parent_for_dialog().as_ref(),
         DialogFlags::MODAL,
-        &[("Cancel", ResponseType::Cancel), ("Apply", ResponseType::Accept)]
+        &[
+            ("Cancel", ResponseType::Cancel),
+            ("Apply", ResponseType::Accept),
+        ],
     );
     crate::ui::util::standardize_dialog(&dlg);
 
-    let content = GtkBox::builder().orientation(Orientation::Vertical).spacing(8).margin_start(16).margin_end(16).margin_top(16).margin_bottom(16).build();
+    let content = GtkBox::builder()
+        .orientation(Orientation::Vertical)
+        .spacing(8)
+        .margin_start(16)
+        .margin_end(16)
+        .margin_top(16)
+        .margin_bottom(16)
+        .build();
 
-    let replace_row = GtkBox::builder().orientation(Orientation::Horizontal).spacing(6).build();
+    let replace_row = GtkBox::builder()
+        .orientation(Orientation::Horizontal)
+        .spacing(6)
+        .build();
     replace_row.append(&Label::new(Some("Replace with existing:")));
     let dd = ComboBoxText::new();
     {
@@ -124,19 +177,31 @@ fn show_fix_unknown_ex_dialog_refresh(state: Arc<Mutex<AppState>>, group_name: O
         if let Some(plan) = &s.current_plan {
             let mut keys: Vec<_> = plan.dictionary.keys().cloned().collect();
             keys.sort();
-            for k in keys { dd.append_text(&k); }
+            for k in keys {
+                dd.append_text(&k);
+            }
         }
     }
     dd.set_hexpand(true);
     replace_row.append(&dd);
     content.append(&replace_row);
 
-    let add_row = GtkBox::builder().orientation(Orientation::Horizontal).spacing(6).build();
+    let add_row = GtkBox::builder()
+        .orientation(Orientation::Horizontal)
+        .spacing(6)
+        .build();
     add_row.append(&Label::new(Some("Or add code + name:")));
-    let code_entry = Entry::new(); code_entry.set_placeholder_text(Some("CODE.SUBCODE[.VARIANT]")); code_entry.set_width_chars(24);
-    if let Some(b) = &bad_code { code_entry.set_text(b); }
-    let name_entry = Entry::new(); name_entry.set_placeholder_text(Some("Display Name")); name_entry.set_hexpand(true);
-    add_row.append(&code_entry); add_row.append(&name_entry);
+    let code_entry = Entry::new();
+    code_entry.set_placeholder_text(Some("CODE.SUBCODE[.VARIANT]"));
+    code_entry.set_width_chars(24);
+    if let Some(b) = &bad_code {
+        code_entry.set_text(b);
+    }
+    let name_entry = Entry::new();
+    name_entry.set_placeholder_text(Some("Display Name"));
+    name_entry.set_hexpand(true);
+    add_row.append(&code_entry);
+    add_row.append(&name_entry);
     content.append(&add_row);
 
     dlg.content_area().append(&content);
@@ -173,17 +238,34 @@ fn show_fix_unknown_ex_dialog_refresh(state: Arc<Mutex<AppState>>, group_name: O
     dlg.present();
 }
 
-fn show_rename_code_dialog_refresh(state: Arc<Mutex<AppState>>, bad_code: &str, list: &GtkBox, header: &Label) {
+fn show_rename_code_dialog_refresh(
+    state: Arc<Mutex<AppState>>,
+    bad_code: &str,
+    list: &GtkBox,
+    header: &Label,
+) {
     let dlg = Dialog::with_buttons(
         Some("Rename Exercise Code"),
         crate::ui::util::parent_for_dialog().as_ref(),
         DialogFlags::MODAL,
-        &[("Cancel", ResponseType::Cancel), ("Rename", ResponseType::Accept)]
+        &[
+            ("Cancel", ResponseType::Cancel),
+            ("Rename", ResponseType::Accept),
+        ],
     );
     crate::ui::util::standardize_dialog(&dlg);
-    let row = GtkBox::builder().orientation(Orientation::Horizontal).spacing(8).margin_start(16).margin_end(16).margin_top(16).margin_bottom(16).build();
+    let row = GtkBox::builder()
+        .orientation(Orientation::Horizontal)
+        .spacing(8)
+        .margin_start(16)
+        .margin_end(16)
+        .margin_top(16)
+        .margin_bottom(16)
+        .build();
     row.append(&Label::new(Some(&format!("{} →", bad_code))));
-    let entry = Entry::new(); entry.set_placeholder_text(Some("NEW.CODE")); entry.set_width_chars(24);
+    let entry = Entry::new();
+    entry.set_placeholder_text(Some("NEW.CODE"));
+    entry.set_width_chars(24);
     row.append(&entry);
     dlg.content_area().append(&row);
     crate::ui::util::bind_ctrl_enter_to_accept(&dlg);

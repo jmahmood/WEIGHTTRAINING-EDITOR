@@ -1,23 +1,28 @@
 // Scheme edit dialog functionality
 
+use crate::operations::plan_ops::update_scheme_full_in_plan;
 use crate::state::AppState;
-use crate::operations::plan_ops::{update_scheme_full_in_plan};
 use crate::ui::exercise_menus::exercise_data::SchemeSetData;
 use crate::ui::widgets::ExerciseSearchWidget;
 use glib::clone;
 use gtk4::prelude::*;
-use gtk4::{
-    Orientation, Label, Box as GtkBox,
-    Dialog, DialogFlags, ResponseType
-};
+use gtk4::{Box as GtkBox, Dialog, DialogFlags, Label, Orientation, ResponseType};
 use std::sync::{Arc, Mutex};
 
-pub fn show_edit_scheme_dialog(state: Arc<Mutex<AppState>>, scheme: weightlifting_core::SchemeSegment, day_index: usize, segment_index: usize) {
+pub fn show_edit_scheme_dialog(
+    state: Arc<Mutex<AppState>>,
+    scheme: weightlifting_core::SchemeSegment,
+    day_index: usize,
+    segment_index: usize,
+) {
     let dialog = Dialog::with_buttons(
         Some("Edit Scheme"),
         crate::ui::util::parent_for_dialog().as_ref(),
         DialogFlags::MODAL,
-        &[("Cancel", ResponseType::Cancel), ("Update", ResponseType::Accept)]
+        &[
+            ("Cancel", ResponseType::Cancel),
+            ("Update", ResponseType::Accept),
+        ],
     );
     crate::ui::util::standardize_dialog(&dialog);
     let content = GtkBox::builder()
@@ -28,10 +33,12 @@ pub fn show_edit_scheme_dialog(state: Arc<Mutex<AppState>>, scheme: weightliftin
         .margin_bottom(20)
         .spacing(12)
         .build();
-    
+
     // Exercise Search Widget (search-first, updates fields)
     let search_widget = ExerciseSearchWidget::new();
-    if let Err(e) = search_widget.set_database_path("/home/jawaad/weightlifting-desktop/exercises.db") {
+    if let Err(e) =
+        search_widget.set_database_path("/home/jawaad/weightlifting-desktop/exercises.db")
+    {
         println!("Failed to connect to exercise database: {}", e);
     }
     let search_expander = gtk4::Expander::builder()
@@ -68,28 +75,46 @@ pub fn show_edit_scheme_dialog(state: Arc<Mutex<AppState>>, scheme: weightliftin
     let ex_label = Label::new(Some("Exercise Code:"));
     let ex_entry = gtk4::Entry::new();
     ex_entry.set_text(&scheme.base.ex);
-    
+
     let label_label = Label::new(Some("Exercise Label:"));
     let label_entry = gtk4::Entry::new();
-    label_entry.set_text(&scheme.base.label.clone().unwrap_or_else(|| scheme.base.ex.clone()));
-    
+    label_entry.set_text(
+        &scheme
+            .base
+            .label
+            .clone()
+            .unwrap_or_else(|| scheme.base.ex.clone()),
+    );
+
     // Alternative Group (optional) — compact dropdown selector like <select>
     use gtk4::{DropDown, StringList};
     let alt_group_label = Label::new(Some("Alternative Group (optional):"));
-    let row = GtkBox::builder().orientation(Orientation::Horizontal).spacing(8).build();
+    let row = GtkBox::builder()
+        .orientation(Orientation::Horizontal)
+        .spacing(8)
+        .build();
     let groups_list = StringList::new(&["None"]);
     let mut names: Vec<String> = {
         let s = state.lock().unwrap();
-        if let Some(plan) = &s.current_plan { plan.groups.keys().cloned().collect() } else { vec![] }
+        if let Some(plan) = &s.current_plan {
+            plan.groups.keys().cloned().collect()
+        } else {
+            vec![]
+        }
     };
     names.sort();
-    for name in &names { groups_list.append(name); }
+    for name in &names {
+        groups_list.append(name);
+    }
     let alt_dropdown = DropDown::new(Some(groups_list.clone()), None::<gtk4::Expression>);
     // Custom list item with preview of members
     let list_factory = gtk4::SignalListItemFactory::new();
     let state_for_factory = state.clone();
     list_factory.connect_setup(move |_, list_item| {
-        let vbox = GtkBox::builder().orientation(Orientation::Vertical).spacing(2).build();
+        let vbox = GtkBox::builder()
+            .orientation(Orientation::Vertical)
+            .spacing(2)
+            .build();
         let name = Label::new(None);
         name.set_halign(gtk4::Align::Start);
         let preview = Label::new(None);
@@ -103,9 +128,29 @@ pub fn show_edit_scheme_dialog(state: Arc<Mutex<AppState>>, scheme: weightliftin
     });
     let state_for_bind = state_for_factory.clone();
     list_factory.connect_bind(move |_, list_item| {
-        let string_object = list_item.item().unwrap().downcast::<gtk4::StringObject>().unwrap();
-        let name_lbl = list_item.child().unwrap().downcast::<GtkBox>().unwrap().first_child().unwrap().downcast::<Label>().unwrap();
-        let preview_lbl = list_item.child().unwrap().downcast::<GtkBox>().unwrap().last_child().unwrap().downcast::<Label>().unwrap();
+        let string_object = list_item
+            .item()
+            .unwrap()
+            .downcast::<gtk4::StringObject>()
+            .unwrap();
+        let name_lbl = list_item
+            .child()
+            .unwrap()
+            .downcast::<GtkBox>()
+            .unwrap()
+            .first_child()
+            .unwrap()
+            .downcast::<Label>()
+            .unwrap();
+        let preview_lbl = list_item
+            .child()
+            .unwrap()
+            .downcast::<GtkBox>()
+            .unwrap()
+            .last_child()
+            .unwrap()
+            .downcast::<Label>()
+            .unwrap();
         let gname = string_object.string();
         name_lbl.set_text(&gname);
         if gname == "None" {
@@ -114,18 +159,37 @@ pub fn show_edit_scheme_dialog(state: Arc<Mutex<AppState>>, scheme: weightliftin
             let s = state_for_bind.lock().unwrap();
             if let Some(plan) = &s.current_plan {
                 if let Some(exs) = plan.groups.get(gname.as_str()) {
-                    let names: Vec<String> = exs.iter().take(4).map(|code| plan.dictionary.get(code).cloned().unwrap_or_else(|| code.clone())).collect();
+                    let names: Vec<String> = exs
+                        .iter()
+                        .take(4)
+                        .map(|code| {
+                            plan.dictionary
+                                .get(code)
+                                .cloned()
+                                .unwrap_or_else(|| code.clone())
+                        })
+                        .collect();
                     let mut pv = names.join(", ");
-                    if exs.len() > 4 { pv.push_str(", …"); }
+                    if exs.len() > 4 {
+                        pv.push_str(", …");
+                    }
                     preview_lbl.set_text(&pv);
-                } else { preview_lbl.set_text(""); }
-            } else { preview_lbl.set_text(""); }
+                } else {
+                    preview_lbl.set_text("");
+                }
+            } else {
+                preview_lbl.set_text("");
+            }
         }
     });
     alt_dropdown.set_list_factory(Some(&list_factory));
     // Set current selection based on scheme.base.alt_group
     let mut sel = 0u32;
-    if let Some(ag) = &scheme.base.alt_group { if let Some(pos) = names.iter().position(|n| n == ag) { sel = (pos + 1) as u32; } }
+    if let Some(ag) = &scheme.base.alt_group {
+        if let Some(pos) = names.iter().position(|n| n == ag) {
+            sel = (pos + 1) as u32;
+        }
+    }
     alt_dropdown.set_selected(sel);
     // Edit button opens group manager
     let edit_group_btn = gtk4::Button::with_label("Edit Group…");
@@ -133,7 +197,7 @@ pub fn show_edit_scheme_dialog(state: Arc<Mutex<AppState>>, scheme: weightliftin
     row.append(&edit_group_btn);
     content.append(&alt_group_label);
     content.append(&row);
-    
+
     // Scheme sets editor
     let sets_title = Label::new(Some("Scheme Sets:"));
     sets_title.set_css_classes(&["heading"]);
@@ -151,7 +215,9 @@ pub fn show_edit_scheme_dialog(state: Arc<Mutex<AppState>>, scheme: weightliftin
             .spacing(8)
             .build();
         let label_entry = gtk4::Entry::new();
-        if let Some(lbl) = &data.label { label_entry.set_text(lbl); }
+        if let Some(lbl) = &data.label {
+            label_entry.set_text(lbl);
+        }
         label_entry.set_placeholder_text(Some("Label (optional)"));
         label_entry.set_width_chars(12);
         let sets_entry = gtk4::SpinButton::with_range(1.0, 20.0, 1.0);
@@ -190,7 +256,9 @@ pub fn show_edit_scheme_dialog(state: Arc<Mutex<AppState>>, scheme: weightliftin
         // Remove handler
         let row_clone = row.clone();
         let container_clone = container.clone();
-        remove_btn.connect_clicked(move |_| { container_clone.remove(&row_clone); });
+        remove_btn.connect_clicked(move |_| {
+            container_clone.remove(&row_clone);
+        });
 
         container.append(&row);
     };
@@ -200,11 +268,26 @@ pub fn show_edit_scheme_dialog(state: Arc<Mutex<AppState>>, scheme: weightliftin
         let data = SchemeSetData {
             label: s.label.clone(),
             sets: s.sets,
-            reps_min: match &s.reps { Some(weightlifting_core::RepsOrRange::Range(r)) => Some(r.min), _ => None },
-            reps_max: match &s.reps { Some(weightlifting_core::RepsOrRange::Range(r)) => Some(r.max), _ => None },
-            time_sec: match &s.time_sec { Some(weightlifting_core::TimeOrRange::Fixed(t)) => Some(*t), _ => None },
-            rpe: match &s.rpe { Some(weightlifting_core::RpeOrRange::Fixed(v)) => Some(*v), _ => None },
-            rest_sec: match &s.rest_sec { Some(weightlifting_core::RestOrRange::Fixed(v)) => Some(*v), _ => None },
+            reps_min: match &s.reps {
+                Some(weightlifting_core::RepsOrRange::Range(r)) => Some(r.min),
+                _ => None,
+            },
+            reps_max: match &s.reps {
+                Some(weightlifting_core::RepsOrRange::Range(r)) => Some(r.max),
+                _ => None,
+            },
+            time_sec: match &s.time_sec {
+                Some(weightlifting_core::TimeOrRange::Fixed(t)) => Some(*t),
+                _ => None,
+            },
+            rpe: match &s.rpe {
+                Some(weightlifting_core::RpeOrRange::Fixed(v)) => Some(*v),
+                _ => None,
+            },
+            rest_sec: match &s.rest_sec {
+                Some(weightlifting_core::RestOrRange::Fixed(v)) => Some(*v),
+                _ => None,
+            },
         };
         add_set_row(&sets_container, data);
     }
@@ -213,9 +296,20 @@ pub fn show_edit_scheme_dialog(state: Arc<Mutex<AppState>>, scheme: weightliftin
     let add_set_btn = gtk4::Button::with_label("+ Add Set");
     let container_for_add = sets_container.clone();
     add_set_btn.connect_clicked(move |_| {
-        let data = SchemeSetData { label: None, sets: Some(1), reps_min: Some(8), reps_max: Some(12), time_sec: None, rpe: None, rest_sec: None };
+        let data = SchemeSetData {
+            label: None,
+            sets: Some(1),
+            reps_min: Some(8),
+            reps_max: Some(12),
+            time_sec: None,
+            rpe: None,
+            rest_sec: None,
+        };
         let adder = |c: &GtkBox, d: SchemeSetData| {
-            let row = GtkBox::builder().orientation(Orientation::Horizontal).spacing(8).build();
+            let row = GtkBox::builder()
+                .orientation(Orientation::Horizontal)
+                .spacing(8)
+                .build();
             let label_entry = gtk4::Entry::new();
             label_entry.set_placeholder_text(Some("Label (optional)"));
             label_entry.set_width_chars(12);
@@ -245,18 +339,20 @@ pub fn show_edit_scheme_dialog(state: Arc<Mutex<AppState>>, scheme: weightliftin
             row.append(&remove_btn);
             let row_clone = row.clone();
             let container_clone = c.clone();
-            remove_btn.connect_clicked(move |_| { container_clone.remove(&row_clone); });
+            remove_btn.connect_clicked(move |_| {
+                container_clone.remove(&row_clone);
+            });
             c.append(&row);
         };
         adder(&container_for_add, data);
     });
     content.append(&add_set_btn);
-    
+
     // For now, just allow editing the exercise info - full scheme editing would be complex
     // let note_label = Label::new(Some("Note: Full scheme set editing not yet implemented. You can only edit the exercise code and label."));
     // note_label.set_css_classes(&["dim-label"]);
     // content.append(&note_label);
-    
+
     // Build the UI
     manual_box.append(&ex_label);
     manual_box.append(&ex_entry);
@@ -273,10 +369,14 @@ pub fn show_edit_scheme_dialog(state: Arc<Mutex<AppState>>, scheme: weightliftin
         let alt_dropdown_for_btn = alt_dropdown.clone();
         edit_group_btn.connect_clicked(move |_| {
             let idx = alt_dropdown_for_btn.selected() as usize;
-            if idx == 0 { // None
+            if idx == 0 {
+                // None
                 show_manage_exercise_groups_dialog_with_selection(state_for_edit.clone(), None);
             } else {
-                show_manage_exercise_groups_dialog_with_selection(state_for_edit.clone(), Some(names_for_edit[idx - 1].clone()));
+                show_manage_exercise_groups_dialog_with_selection(
+                    state_for_edit.clone(),
+                    Some(names_for_edit[idx - 1].clone()),
+                );
             }
         });
     }
@@ -298,9 +398,9 @@ pub fn show_edit_scheme_dialog(state: Arc<Mutex<AppState>>, scheme: weightliftin
         // Collapse the search dropdown immediately after activation (Enter/double-click)
         expander_on_select2.set_expanded(false);
     });
-    
+
     dialog.content_area().append(&content);
-    
+
     dialog.connect_response(clone!(@strong state, @strong ex_entry, @strong label_entry, @strong alt_dropdown, @strong sets_container => move |dialog, response| {
         if response == ResponseType::Accept {
             let ex_code = ex_entry.text().to_string();
@@ -340,6 +440,6 @@ pub fn show_edit_scheme_dialog(state: Arc<Mutex<AppState>>, scheme: weightliftin
         }
         dialog.close();
     }));
-    
+
     dialog.present();
 }

@@ -1,11 +1,11 @@
 // Scheme dialog extracted from complex_dialogs.rs
 
-use crate::state::AppState;
 use super::components::create_exercise_search_section_complex;
+use crate::state::AppState;
 use glib::clone;
-use gtk4::prelude::*;
 use gtk4::prelude::EditableExt;
-use gtk4::{Orientation, Box as GtkBox, SpinButton, Dialog, DialogFlags, ResponseType, Expander};
+use gtk4::prelude::*;
+use gtk4::{Box as GtkBox, Dialog, DialogFlags, Expander, Orientation, ResponseType, SpinButton};
 use std::sync::{Arc, Mutex};
 
 use crate::operations::plan_ops::add_scheme_to_plan;
@@ -17,7 +17,10 @@ pub fn show_add_scheme_dialog(state: Arc<Mutex<AppState>>) {
         Some("Add Scheme"),
         crate::ui::util::parent_for_dialog().as_ref(),
         DialogFlags::MODAL,
-        &[("Cancel", ResponseType::Cancel), ("Add", ResponseType::Accept)]
+        &[
+            ("Cancel", ResponseType::Cancel),
+            ("Add", ResponseType::Accept),
+        ],
     );
     crate::ui::util::standardize_dialog(&dialog);
     let content = GtkBox::builder()
@@ -30,7 +33,8 @@ pub fn show_add_scheme_dialog(state: Arc<Mutex<AppState>>) {
         .build();
 
     // Exercise Search Widget (Default)
-    let (search_expander, ex_entry, label_entry, _search_widget) = create_exercise_search_section_complex();
+    let (search_expander, ex_entry, label_entry, _search_widget) =
+        create_exercise_search_section_complex();
     content.append(&search_expander);
 
     // Manual Input Fields (Advanced option)
@@ -132,15 +136,15 @@ pub fn show_add_scheme_dialog(state: Arc<Mutex<AppState>>) {
             let backoff_rest = backoff_rest_entry.value() as u32;
 
             add_scheme_to_plan(
-                state.clone(), 
-                ex_code, 
-                ex_label, 
-                top_reps, 
-                top_rpe, 
-                top_rest, 
-                backoff_sets, 
-                backoff_reps, 
-                backoff_percent, 
+                state.clone(),
+                ex_code,
+                ex_label,
+                top_reps,
+                top_rpe,
+                top_rest,
+                backoff_sets,
+                backoff_reps,
+                backoff_percent,
                 backoff_rest
             );
         }

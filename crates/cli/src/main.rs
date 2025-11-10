@@ -1,12 +1,14 @@
+use chrono::NaiveDate;
 use clap::{Parser, Subcommand};
-use std::io::{self, Read};
 use std::fs;
+use std::io::{self, Read};
 use std::path::PathBuf;
-use weightlifting_core::{Plan, AppPaths, ExportStager, VersionedPlan, PlanVersion, VersionState, VersionMetadata};
-use weightlifting_core::{BuiltinCharts, VolumeMetric, PRDisplayMode};
+use weightlifting_core::{
+    AppPaths, ExportStager, Plan, PlanVersion, VersionMetadata, VersionState, VersionedPlan,
+};
+use weightlifting_core::{BuiltinCharts, PRDisplayMode, VolumeMetric};
 use weightlifting_indexer::cache::MetricsCache;
 use weightlifting_validate::PlanValidator;
-use chrono::NaiveDate;
 
 /// **Death to Windows!** - Weightlifting Desktop CLI (Linux native)
 #[derive(Parser)]
@@ -133,7 +135,7 @@ enum ChartAction {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
-    
+
     let paths = match AppPaths::new() {
         Ok(paths) => paths,
         Err(e) => {
@@ -141,32 +143,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             std::process::exit(4);
         }
     };
-    
+
     match cli.command {
-        Commands::Plans { action } => {
-            match handle_plan_command(action, &paths).await {
-                Ok(()) => {},
-                Err(e) => {
-                    eprintln!("Error: {}", e);
-                    std::process::exit(2);
-                }
+        Commands::Plans { action } => match handle_plan_command(action, &paths).await {
+            Ok(()) => {}
+            Err(e) => {
+                eprintln!("Error: {}", e);
+                std::process::exit(2);
             }
         },
-        Commands::Chart { action } => {
-            match handle_chart_command(action, &paths).await {
-                Ok(()) => {},
-                Err(e) => {
-                    eprintln!("Error: {}", e);
-                    std::process::exit(2);
-                }
+        Commands::Chart { action } => match handle_chart_command(action, &paths).await {
+            Ok(()) => {}
+            Err(e) => {
+                eprintln!("Error: {}", e);
+                std::process::exit(2);
             }
         },
     }
-    
+
     Ok(())
 }
 
-async fn handle_plan_command(action: PlanAction, paths: &AppPaths) -> Result<(), Box<dyn std::error::Error>> {
+async fn handle_plan_command(
+    action: PlanAction,
+    paths: &AppPaths,
+) -> Result<(), Box<dyn std::error::Error>> {
     match action {
         PlanAction::Validate { r#in, file } => {
             let plan_json = if r#in {
@@ -187,15 +188,17 @@ async fn handle_plan_command(action: PlanAction, paths: &AppPaths) -> Result<(),
             println!("{}", serde_json::to_string_pretty(&result)?);
 
             // Human-readable summary to stderr
-            eprintln!("Validation summary: {} errors, {} warnings", 
-                      result.errors.len(), 
-                      result.warnings.len());
+            eprintln!(
+                "Validation summary: {} errors, {} warnings",
+                result.errors.len(),
+                result.warnings.len()
+            );
 
             // Exit with appropriate code
             if !result.errors.is_empty() {
                 std::process::exit(2);
             }
-        },
+        }
         PlanAction::Save { r#in, file } => {
             let plan_json = if r#in {
                 let mut input = String::new();
@@ -208,10 +211,10 @@ async fn handle_plan_command(action: PlanAction, paths: &AppPaths) -> Result<(),
             };
 
             let plan: Plan = serde_json::from_str(&plan_json)?;
-            
+
             // Generate plan ID if not present - using plan name as base
             let plan_id = generate_plan_id(&plan.name);
-            
+
             // Save as draft
             let draft_path = paths.draft_path(&plan_id);
             fs::create_dir_all(draft_path.parent().unwrap())?;
@@ -225,7 +228,7 @@ async fn handle_plan_command(action: PlanAction, paths: &AppPaths) -> Result<(),
             });
 
             println!("{}", serde_json::to_string_pretty(&response)?);
-        },
+        }
         PlanAction::Get { id, version } => {
             let plan_path = if let Some(v) = version {
                 paths.active_plan_path(&id, &v)
@@ -240,8 +243,13 @@ async fn handle_plan_command(action: PlanAction, paths: &AppPaths) -> Result<(),
 
             let plan_json = fs::read_to_string(plan_path)?;
             println!("{}", plan_json);
-        },
-        PlanAction::Export { id, version, mount, dry_run } => {
+        }
+        PlanAction::Export {
+            id,
+            version,
+            mount,
+            dry_run,
+        } => {
             // Load plan
             let plan_path = if let Some(ref v) = version {
                 paths.active_plan_path(&id, v)
@@ -256,14 +264,14 @@ async fn handle_plan_command(action: PlanAction, paths: &AppPaths) -> Result<(),
 
             let plan_json = fs::read_to_string(&plan_path)?;
             let plan: Plan = serde_json::from_str(&plan_json)?;
-            
+
             // Create versioned plan wrapper
             let plan_version = if let Some(ref v) = version {
                 parse_version(v)?
             } else {
                 PlanVersion::new(1, 0, 0)
             };
-            
+
             let versioned_plan = VersionedPlan {
                 plan,
                 version: plan_version,
@@ -287,18 +295,18 @@ async fn handle_plan_command(action: PlanAction, paths: &AppPaths) -> Result<(),
             if !conflicts.is_empty() {
                 eprintln!("Export conflicts detected:");
                 for conflict in conflicts {
-                    eprintln!("  • {:?} ({:?}): {}", 
-                             conflict.conflict_type, 
-                             conflict.severity, 
-                             conflict.description);
+                    eprintln!(
+                        "  • {:?} ({:?}): {}",
+                        conflict.conflict_type, conflict.severity, conflict.description
+                    );
                 }
-                
+
                 // Check for existing files at mount point
                 let export_path = mount.join("plans").join(&id);
                 if export_path.exists() {
                     eprintln!("  • File exists at mount point: {}", export_path.display());
                 }
-                
+
                 if !stager.can_export() {
                     std::process::exit(3); // Exit code 3 for conflicts
                 }
@@ -307,7 +315,7 @@ async fn handle_plan_command(action: PlanAction, paths: &AppPaths) -> Result<(),
             // Generate manifest
             let manifest = stager.generate_manifest(
                 Some("CLI Export".to_string()),
-                Some(format!("Export of plan {} via CLI", id))
+                Some(format!("Export of plan {} via CLI", id)),
             );
 
             // Output manifest JSON to stdout
@@ -317,34 +325,40 @@ async fn handle_plan_command(action: PlanAction, paths: &AppPaths) -> Result<(),
                 // Perform actual export
                 let export_dir = mount.join("plans").join(&id);
                 fs::create_dir_all(&export_dir)?;
-                
+
                 for plan_info in &manifest.plans {
                     let export_path = mount.join(&plan_info.path);
                     if let Some(parent) = export_path.parent() {
                         fs::create_dir_all(parent)?;
                     }
-                    
+
                     // Re-serialize plan for export
                     if let Some(versioned_plan) = stager.get_plans().get(&plan_info.id) {
                         let export_json = serde_json::to_string_pretty(&versioned_plan.plan)?;
                         fs::write(&export_path, export_json)?;
                     }
                 }
-                
+
                 eprintln!("Export completed to: {}", mount.display());
             } else {
                 eprintln!("Dry run - no files written");
             }
-        },
+        }
     }
-    
+
     Ok(())
 }
 
 fn generate_plan_id(name: &str) -> String {
     // Convert name to valid ID (alphanumeric + underscores)
     name.chars()
-        .map(|c| if c.is_alphanumeric() { c.to_ascii_lowercase() } else { '_' })
+        .map(|c| {
+            if c.is_alphanumeric() {
+                c.to_ascii_lowercase()
+            } else {
+                '_'
+            }
+        })
         .collect::<String>()
         .trim_matches('_')
         .to_string()
@@ -353,124 +367,177 @@ fn generate_plan_id(name: &str) -> String {
 fn parse_version(version_str: &str) -> Result<PlanVersion, Box<dyn std::error::Error>> {
     let parts: Vec<&str> = version_str.split('.').collect();
     if parts.len() != 3 {
-        return Err(format!("Invalid version format: {}. Expected major.minor.patch", version_str).into());
+        return Err(format!(
+            "Invalid version format: {}. Expected major.minor.patch",
+            version_str
+        )
+        .into());
     }
-    
+
     let major = parts[0].parse::<u32>()?;
     let minor = parts[1].parse::<u32>()?;
     let patch = parts[2].parse::<u32>()?;
-    
+
     Ok(PlanVersion::new(major, minor, patch))
 }
 
-async fn handle_chart_command(action: ChartAction, paths: &AppPaths) -> Result<(), Box<dyn std::error::Error>> {
+async fn handle_chart_command(
+    action: ChartAction,
+    paths: &AppPaths,
+) -> Result<(), Box<dyn std::error::Error>> {
     let cache = MetricsCache::new(paths);
-    
+
     match action {
-        ChartAction::EmitSpec { chart_type, exercise, start_date, end_date, output } => {
+        ChartAction::EmitSpec {
+            chart_type,
+            exercise,
+            start_date,
+            end_date,
+            output,
+        } => {
             let date_range = parse_date_range(start_date.as_deref(), end_date.as_deref())?;
-            
+
             let spec = match chart_type.as_str() {
                 "e1rm" => {
                     let e1rm_data = cache.load_e1rm_data()?;
-                    let filtered_data = filter_e1rm_data(&e1rm_data, exercise.as_deref(), date_range);
+                    let filtered_data =
+                        filter_e1rm_data(&e1rm_data, exercise.as_deref(), date_range);
                     BuiltinCharts::e1rm_over_time(&filtered_data, exercise.as_deref(), None)
-                },
+                }
                 "volume" => {
                     let volume_data = cache.load_volume_data()?;
                     let filtered_data = filter_volume_data(&volume_data, date_range);
-                    BuiltinCharts::weekly_volume_by_bodypart(&filtered_data, None, VolumeMetric::TonnageKg, None)
-                },
+                    BuiltinCharts::weekly_volume_by_bodypart(
+                        &filtered_data,
+                        None,
+                        VolumeMetric::TonnageKg,
+                        None,
+                    )
+                }
                 "pr" => {
                     let pr_data = cache.load_pr_data()?;
                     let filtered_data = filter_pr_data(&pr_data, exercise.as_deref(), date_range);
-                    BuiltinCharts::pr_board(&filtered_data, exercise.as_deref(), PRDisplayMode::Bar, None)
-                },
+                    BuiltinCharts::pr_board(
+                        &filtered_data,
+                        exercise.as_deref(),
+                        PRDisplayMode::Bar,
+                        None,
+                    )
+                }
                 "heatmap" => {
                     let e1rm_data = cache.load_e1rm_data()?;
-                    let session_dates: Vec<NaiveDate> = e1rm_data.iter()
-                        .map(|d| d.date)
-                        .collect();
-                    let (start, end) = date_range.unwrap_or_else(|| {
-                        let min_date = session_dates.iter().min().copied().unwrap_or_else(|| NaiveDate::from_ymd_opt(2025, 1, 1).unwrap());
-                        let max_date = session_dates.iter().max().copied().unwrap_or_else(|| NaiveDate::from_ymd_opt(2025, 12, 31).unwrap());
-                        (min_date, max_date)
-                    });
+                    let session_dates: Vec<NaiveDate> = e1rm_data.iter().map(|d| d.date).collect();
+                    let (start, end) =
+                        date_range.unwrap_or_else(|| {
+                            let min_date =
+                                session_dates.iter().min().copied().unwrap_or_else(|| {
+                                    NaiveDate::from_ymd_opt(2025, 1, 1).unwrap()
+                                });
+                            let max_date =
+                                session_dates.iter().max().copied().unwrap_or_else(|| {
+                                    NaiveDate::from_ymd_opt(2025, 12, 31).unwrap()
+                                });
+                            (min_date, max_date)
+                        });
                     BuiltinCharts::session_frequency_heatmap(&session_dates, start, end, None)
-                },
+                }
                 _ => {
-                    return Err(format!("Unknown chart type: {}. Available: e1rm, volume, pr, heatmap", chart_type).into());
+                    return Err(format!(
+                        "Unknown chart type: {}. Available: e1rm, volume, pr, heatmap",
+                        chart_type
+                    )
+                    .into());
                 }
             };
-            
+
             let json_spec = spec.to_json_string()?;
-            
+
             if let Some(output_path) = output {
                 fs::write(output_path, json_spec)?;
             } else {
                 println!("{}", json_spec);
             }
-        },
-        ChartAction::Render { spec: _spec, format: _format, output: _output } => {
-            eprintln!("Chart rendering not yet implemented - requires headless browser integration");
+        }
+        ChartAction::Render {
+            spec: _spec,
+            format: _format,
+            output: _output,
+        } => {
+            eprintln!(
+                "Chart rendering not yet implemented - requires headless browser integration"
+            );
             std::process::exit(1);
-        },
-        ChartAction::ExportCsv { chart_type, exercise, start_date, end_date, output } => {
+        }
+        ChartAction::ExportCsv {
+            chart_type,
+            exercise,
+            start_date,
+            end_date,
+            output,
+        } => {
             let date_range = parse_date_range(start_date.as_deref(), end_date.as_deref())?;
-            
+
             match chart_type.as_str() {
                 "e1rm" => {
                     let e1rm_data = cache.load_e1rm_data()?;
-                    let filtered_data = filter_e1rm_data(&e1rm_data, exercise.as_deref(), date_range);
+                    let filtered_data =
+                        filter_e1rm_data(&e1rm_data, exercise.as_deref(), date_range);
                     export_e1rm_csv(&filtered_data, &output)?;
-                },
+                }
                 "volume" => {
                     let volume_data = cache.load_volume_data()?;
                     let filtered_data = filter_volume_data(&volume_data, date_range);
                     export_volume_csv(&filtered_data, &output)?;
-                },
+                }
                 "pr" => {
                     let pr_data = cache.load_pr_data()?;
                     let filtered_data = filter_pr_data(&pr_data, exercise.as_deref(), date_range);
                     export_pr_csv(&filtered_data, &output)?;
-                },
+                }
                 _ => {
-                    return Err(format!("Unknown chart type for CSV export: {}. Available: e1rm, volume, pr", chart_type).into());
+                    return Err(format!(
+                        "Unknown chart type for CSV export: {}. Available: e1rm, volume, pr",
+                        chart_type
+                    )
+                    .into());
                 }
             }
-            
+
             eprintln!("CSV data exported to: {}", output.display());
-        },
+        }
     }
-    
+
     Ok(())
 }
 
-fn parse_date_range(start: Option<&str>, end: Option<&str>) -> Result<Option<(NaiveDate, NaiveDate)>, Box<dyn std::error::Error>> {
+fn parse_date_range(
+    start: Option<&str>,
+    end: Option<&str>,
+) -> Result<Option<(NaiveDate, NaiveDate)>, Box<dyn std::error::Error>> {
     match (start, end) {
         (Some(s), Some(e)) => {
             let start_date = NaiveDate::parse_from_str(s, "%Y-%m-%d")?;
             let end_date = NaiveDate::parse_from_str(e, "%Y-%m-%d")?;
             Ok(Some((start_date, end_date)))
-        },
+        }
         (Some(s), None) => {
             let start_date = NaiveDate::parse_from_str(s, "%Y-%m-%d")?;
             let end_date = chrono::Local::now().date_naive();
             Ok(Some((start_date, end_date)))
-        },
+        }
         (None, Some(e)) => {
             let end_date = NaiveDate::parse_from_str(e, "%Y-%m-%d")?;
             let start_date = NaiveDate::from_ymd_opt(2020, 1, 1).unwrap(); // Far past
             Ok(Some((start_date, end_date)))
-        },
+        }
         (None, None) => Ok(None),
     }
 }
 
 fn filter_e1rm_data(
-    data: &[weightlifting_indexer::metrics::E1RMDataPoint], 
+    data: &[weightlifting_indexer::metrics::E1RMDataPoint],
     exercise: Option<&str>,
-    date_range: Option<(NaiveDate, NaiveDate)>
+    date_range: Option<(NaiveDate, NaiveDate)>,
 ) -> Vec<(String, NaiveDate, f64)> {
     data.iter()
         .filter(|d| exercise.is_none_or(|ex| d.exercise == ex))
@@ -481,32 +548,53 @@ fn filter_e1rm_data(
 
 fn filter_volume_data(
     data: &[weightlifting_indexer::metrics::VolumeDataPoint],
-    date_range: Option<(NaiveDate, NaiveDate)>
+    date_range: Option<(NaiveDate, NaiveDate)>,
 ) -> Vec<(String, NaiveDate, u32, u32, f64)> {
     data.iter()
-        .filter(|d| date_range.is_none_or(|(start, end)| d.week_start >= start && d.week_start <= end))
-        .map(|d| (d.category.clone(), d.week_start, d.total_sets, d.total_reps, d.total_tonnage_kg))
+        .filter(|d| {
+            date_range.is_none_or(|(start, end)| d.week_start >= start && d.week_start <= end)
+        })
+        .map(|d| {
+            (
+                d.category.clone(),
+                d.week_start,
+                d.total_sets,
+                d.total_reps,
+                d.total_tonnage_kg,
+            )
+        })
         .collect()
 }
 
 fn filter_pr_data(
     data: &[weightlifting_indexer::metrics::PRDataPoint],
     exercise: Option<&str>,
-    date_range: Option<(NaiveDate, NaiveDate)>
+    date_range: Option<(NaiveDate, NaiveDate)>,
 ) -> Vec<(String, String, NaiveDate, f64, Option<u32>)> {
     data.iter()
         .filter(|d| exercise.is_none_or(|ex| d.exercise == ex))
         .filter(|d| date_range.is_none_or(|(start, end)| d.date >= start && d.date <= end))
-        .map(|d| (d.exercise.clone(), d.pr_type.clone(), d.date, d.value, d.reps))
+        .map(|d| {
+            (
+                d.exercise.clone(),
+                d.pr_type.clone(),
+                d.date,
+                d.value,
+                d.reps,
+            )
+        })
         .collect()
 }
 
-fn export_e1rm_csv(data: &[(String, NaiveDate, f64)], output: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+fn export_e1rm_csv(
+    data: &[(String, NaiveDate, f64)],
+    output: &PathBuf,
+) -> Result<(), Box<dyn std::error::Error>> {
     let mut wtr = csv::Writer::from_path(output)?;
-    
+
     // Write header
     wtr.write_record(["exercise", "date", "e1rm_kg", "e1rm_lb"])?;
-    
+
     // Write data
     for (exercise, date, e1rm_kg) in data {
         let e1rm_lb = e1rm_kg * 2.20462;
@@ -517,17 +605,27 @@ fn export_e1rm_csv(data: &[(String, NaiveDate, f64)], output: &PathBuf) -> Resul
             &e1rm_lb.to_string(),
         ])?;
     }
-    
+
     wtr.flush()?;
     Ok(())
 }
 
-fn export_volume_csv(data: &[(String, NaiveDate, u32, u32, f64)], output: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+fn export_volume_csv(
+    data: &[(String, NaiveDate, u32, u32, f64)],
+    output: &PathBuf,
+) -> Result<(), Box<dyn std::error::Error>> {
     let mut wtr = csv::Writer::from_path(output)?;
-    
-    // Write header  
-    wtr.write_record(["exercise", "week_start", "total_sets", "total_reps", "tonnage_kg", "tonnage_lb"])?;
-    
+
+    // Write header
+    wtr.write_record([
+        "exercise",
+        "week_start",
+        "total_sets",
+        "total_reps",
+        "tonnage_kg",
+        "tonnage_lb",
+    ])?;
+
     // Write data
     for (exercise, week_start, sets, reps, tonnage_kg) in data {
         let tonnage_lb = tonnage_kg * 2.20462;
@@ -540,17 +638,27 @@ fn export_volume_csv(data: &[(String, NaiveDate, u32, u32, f64)], output: &PathB
             &tonnage_lb.to_string(),
         ])?;
     }
-    
+
     wtr.flush()?;
     Ok(())
 }
 
-fn export_pr_csv(data: &[(String, String, NaiveDate, f64, Option<u32>)], output: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+fn export_pr_csv(
+    data: &[(String, String, NaiveDate, f64, Option<u32>)],
+    output: &PathBuf,
+) -> Result<(), Box<dyn std::error::Error>> {
     let mut wtr = csv::Writer::from_path(output)?;
-    
+
     // Write header
-    wtr.write_record(["exercise", "pr_type", "date", "weight_kg", "weight_lb", "reps"])?;
-    
+    wtr.write_record([
+        "exercise",
+        "pr_type",
+        "date",
+        "weight_kg",
+        "weight_lb",
+        "reps",
+    ])?;
+
     // Write data
     for (exercise, pr_type, date, weight_kg, reps) in data {
         let weight_lb = weight_kg * 2.20462;
@@ -563,7 +671,7 @@ fn export_pr_csv(data: &[(String, String, NaiveDate, f64, Option<u32>)], output:
             &reps.map_or("".to_string(), |r| r.to_string()),
         ])?;
     }
-    
+
     wtr.flush()?;
     Ok(())
 }
