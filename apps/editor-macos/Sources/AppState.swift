@@ -8,6 +8,7 @@ class AppState: ObservableObject {
     @Published var selectedSegmentIds: Set<String> = []
     @Published var focusedDayIndex: Int?
     @Published var recentlyAddedSegmentID: String?
+    @Published var shouldFocusInspector = false
     weak var activePlan: PlanDocument?
 
     // Dialog State
@@ -284,10 +285,9 @@ class AppState: ObservableObject {
     }
 
     func editSelectedSegment(in plan: PlanDocument) {
-        guard let coordinate = primarySelectionCoordinate(),
-              let segment = plan.segmentDisplay(dayIndex: coordinate.day, segmentIndex: coordinate.segment),
-              let json = segment.toJSON() else { return }
-        editSegmentJSON(json, at: coordinate.segment, in: coordinate.day)
+        // Focus the Inspector instead of opening the old dialog
+        // The Inspector now provides inline editing for all segment types
+        shouldFocusInspector = true
     }
 
     private func orderedCoordinates(in plan: PlanDocument) -> [SegmentCoordinate] {

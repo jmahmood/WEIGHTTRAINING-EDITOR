@@ -61,39 +61,11 @@ struct InlineSchemeEditor: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Alternative Group (Optional):")
                     .font(.caption)
-                if let altGroup = altGroup, !altGroup.isEmpty {
-                    HStack {
-                        Picker("", selection: Binding(
-                            get: { altGroup },
-                            set: { self.altGroup = $0 }
-                        )) {
-                            Text("None").tag("")
-                            ForEach(plan.groups.keys.sorted(), id: \.self) { groupName in
-                                Text(groupName).tag(groupName)
-                            }
-                        }
-                        .onChange(of: self.altGroup) { _ in hasChanges = true }
-
-                        Button("Clear") {
-                            self.altGroup = nil
-                            hasChanges = true
-                        }
-                        .buttonStyle(.borderless)
-                    }
-                } else {
-                    Picker("Select group", selection: Binding(
-                        get: { altGroup ?? "" },
-                        set: { newValue in
-                            self.altGroup = newValue.isEmpty ? nil : newValue
-                            hasChanges = true
-                        }
-                    )) {
-                        Text("None").tag("")
-                        ForEach(plan.groups.keys.sorted(), id: \.self) { groupName in
-                            Text(groupName).tag(groupName)
-                        }
-                    }
-                }
+                GroupPicker(
+                    plan: plan,
+                    selectedGroup: $altGroup,
+                    onChange: { hasChanges = true }
+                )
             }
 
             Divider()

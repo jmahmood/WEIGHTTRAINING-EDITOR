@@ -51,6 +51,13 @@ struct CanvasView: View {
                     proxy.scrollTo(identifier, anchor: .center)
                 }
             }
+            .onChange(of: appState.selectedSegmentIds) { selectedIds in
+                // Scroll to keep selected segment visible when navigating with keyboard
+                guard canvasFocused, let firstSelected = selectedIds.first else { return }
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    proxy.scrollTo(firstSelected, anchor: .center)
+                }
+            }
         }
         .focusable(true)
         .focused($canvasFocused)
@@ -240,10 +247,66 @@ struct SegmentRowView: View {
                         .foregroundColor(.secondary)
                 }
 
-                HStack(alignment: .firstTextBaseline, spacing: 24) {
-                    MetricColumn(title: "Sets × Reps", value: segment.setsDescription)
-                    MetricColumn(title: "Rest", value: segment.restDescription)
-                    MetricColumn(title: "Notes", value: segment.notesDescription)
+                // Show detailed info based on segment type
+                switch segment.kind {
+                case .superset, .circuit:
+                    // Show list of exercises
+                    let exercises = segment.groupExercises(plan: plan)
+                    if !exercises.isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                            ForEach(exercises) { exercise in
+                                HStack(spacing: 8) {
+                                    Text("•")
+                                        .foregroundColor(.secondary)
+                                    Text(exercise.name)
+                                        .font(.subheadline)
+                                    if !exercise.details.isEmpty {
+                                        Text("—")
+                                            .foregroundColor(.secondary)
+                                        Text(exercise.details)
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                            }
+                        }
+                        .padding(.top, 2)
+                    }
+                    HStack(alignment: .firstTextBaseline, spacing: 24) {
+                        MetricColumn(title: "Rounds", value: segment.setsDescription)
+                        MetricColumn(title: "Rest", value: segment.restDescription)
+                    }
+
+                case .scheme:
+                    // Show set details
+                    let sets = segment.schemeSetDetails()
+                    if !sets.isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                            ForEach(sets) { set in
+                                HStack(spacing: 8) {
+                                    Text("•")
+                                        .foregroundColor(.secondary)
+                                    Text(set.title)
+                                        .font(.subheadline)
+                                        .fontWeight(.medium)
+                                    Text("—")
+                                        .foregroundColor(.secondary)
+                                    Text(set.summary)
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        }
+                        .padding(.top, 2)
+                    }
+
+                default:
+                    // Standard metric columns for other types
+                    HStack(alignment: .firstTextBaseline, spacing: 24) {
+                        MetricColumn(title: "Sets × Reps", value: segment.setsDescription)
+                        MetricColumn(title: "Rest", value: segment.restDescription)
+                        MetricColumn(title: "Notes", value: segment.notesDescription)
+                    }
                 }
             }
 
@@ -259,21 +322,18 @@ struct SegmentRowView: View {
         .onTapGesture {
             handleSelection()
         }
-        .highPriorityGesture(
-            TapGesture(count: 2)
-                .onEnded { _ in
-                    openEditor()
-                }
-        )
         .contextMenu {
-            Button("Edit") {
-                openEditor()
+            Button("Duplicate (⌘D)") {
+                duplicateSegment()
             }
-            Button("Duplicate") {
-                // TODO: Implement duplicate
+            Button("Move Up (⌘↑)") {
+                moveSegmentUp()
+            }
+            Button("Move Down (⌘↓)") {
+                moveSegmentDown()
             }
             Divider()
-            Button("Delete", role: .destructive) {
+            Button("Delete (Del)", role: .destructive) {
                 deleteSegment()
             }
         }
@@ -300,15 +360,23 @@ struct SegmentRowView: View {
             appState.pushUndo(plan.planJSON, label: "Delete Segment")
             try plan.removeSegment(at: segment.index, fromDayAt: segment.dayIndex)
         } catch {
-            print("Failed to delete segment: \(error)")
+            ErrorLogger.shared.error("Failed to delete segment: \(error.localizedDescription)")
         }
     }
 
-    private func openEditor() {
+    private func duplicateSegment() {
         focusCanvas()
-        if let json = segment.toJSON() {
-            appState.editSegmentJSON(json, at: segment.index, in: segment.dayIndex)
-        }
+        appState.duplicateSelectedSegment(in: plan)
+    }
+
+    private func moveSegmentUp() {
+        focusCanvas()
+        appState.moveSelectedSegment(up: true, in: plan)
+    }
+
+    private func moveSegmentDown() {
+        focusCanvas()
+        appState.moveSelectedSegment(up: false, in: plan)
     }
 
     private func handleSelection() {

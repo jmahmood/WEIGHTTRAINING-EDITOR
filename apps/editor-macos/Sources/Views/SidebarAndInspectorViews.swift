@@ -219,6 +219,7 @@ struct InspectorView: View {
     @ObservedObject var plan: PlanDocument
     @EnvironmentObject var appState: AppState
     @State private var targetedGroup: String?
+    @FocusState private var inspectorFocused: Bool
 
     private var selection: SegmentDisplay? {
         guard let identifier = appState.selectedSegmentIds.first else { return nil }
@@ -233,25 +234,51 @@ struct InspectorView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        Group {
             if let segment = selection {
-                Text("Inspector")
-                    .font(.headline)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("Inspector")
+                            .font(.headline)
 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(segment.primaryTitle(with: plan))
-                        .font(.title3)
-                        .fontWeight(.semibold)
-                    Text(segment.humanReadableType)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(segment.primaryTitle(with: plan))
+                                .font(.title3)
+                                .fontWeight(.semibold)
+                            Text(segment.humanReadableType)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+
+                        Divider()
+
+                        SegmentDetailView(segment: segment, plan: plan)
+
+                        // Action buttons
+                        Divider()
+
+                        HStack(spacing: 12) {
+                            Button(action: {
+                                appState.duplicateSelectedSegment(in: plan)
+                            }) {
+                                Label("Duplicate", systemImage: "doc.on.doc")
+                            }
+                            .help("Duplicate this segment (⌘D)")
+
+                            Spacer()
+
+                            Button(role: .destructive, action: {
+                                appState.deleteSelectedSegments(in: plan)
+                            }) {
+                                Label("Delete", systemImage: "trash")
+                            }
+                            .help("Delete this segment (Del)")
+                        }
+                        .buttonStyle(.borderless)
+                        .padding(.top, 8)
+                    }
+                    .padding()
                 }
-
-                Divider()
-
-                SegmentDetailView(segment: segment, plan: plan)
-
-                Spacer()
             } else {
                 InspectorEmptyState()
             }
@@ -269,9 +296,16 @@ struct InspectorView: View {
                 }
             }
         }
-        .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Color(NSColor.windowBackgroundColor))
+        .focusable()
+        .focused($inspectorFocused)
+        .onChange(of: appState.shouldFocusInspector) { shouldFocus in
+            if shouldFocus {
+                inspectorFocused = true
+                appState.shouldFocusInspector = false
+            }
+        }
         .sheet(item: Binding(
             get: { targetedGroup.map { GroupIdentifier(name: $0) } },
             set: { targetedGroup = $0?.name }
@@ -372,16 +406,7 @@ struct SegmentDetailView: View {
             case .straight, .rpe, .percentage, .amrap, .time:
                 InlineSegmentEditorV2(plan: plan, segment: segment)
             case .superset, .circuit:
-                VStack(alignment: .leading, spacing: 12) {
-                    GroupInspectorDetail(metadata: segment.groupMetadataItems(),
-                                         exercises: segment.groupExercises(plan: plan))
-                    Button("Edit in Dialog") {
-                        if let json = segment.toJSON() {
-                            appState.editSegmentJSON(json, at: segment.index, in: segment.dayIndex)
-                        }
-                    }
-                    .buttonStyle(.bordered)
-                }
+                InlineSupersetEditor(plan: plan, segment: segment)
             case .scheme:
                 InlineSchemeEditor(plan: plan, segment: segment)
             case .comment:
