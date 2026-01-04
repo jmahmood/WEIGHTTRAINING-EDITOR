@@ -18,6 +18,8 @@ struct SupersetItemEditorView: View {
     @State private var useRPE = false
     @State private var restSec = 60
     @State private var altGroup: String?
+    @State private var groupRole: String?
+    @State private var loadAxisTarget: LoadAxisTarget?
 
     var body: some View {
         VStack(spacing: 20) {
@@ -36,6 +38,35 @@ struct SupersetItemEditorView: View {
 
                 Section("Alternative Group (Optional)") {
                     GroupPicker(plan: plan, selectedGroup: $altGroup)
+                }
+
+                Section("Group Focus") {
+                    GroupRolePicker(
+                        groupId: altGroup,
+                        availableRoles: altGroup.map { plan.getRolesForGroup($0) } ?? [],
+                        selectedRole: $groupRole
+                    )
+                    if groupRole != nil && altGroup == nil {
+                        Text("Group focus requires an alternative group.")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    }
+                }
+
+                Section("Resistance Target") {
+                    let loadAxes = plan.getLoadAxesForExercise(exerciseCode)
+                    if loadAxes.isEmpty {
+                        Text("No alternative resistance types defined for this exercise.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    } else {
+                        LoadAxisTargetPicker(availableAxes: loadAxes, target: $loadAxisTarget)
+                    }
+                    if loadAxisTarget != nil && loadAxes.isEmpty {
+                        Text("Resistance target is set but no resistance types are defined.")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    }
                 }
 
                 Section("Sets & Reps") {
@@ -125,6 +156,14 @@ struct SupersetItemEditorView: View {
         if let restValue = item["rest_sec"] as? Int {
             restSec = restValue
         }
+        groupRole = item["group_role"] as? String
+        if let axisDict = item["load_axis_target"] as? [String: Any],
+           let axis = axisDict["axis"] as? String,
+           let target = axisDict["target"] as? String {
+            loadAxisTarget = LoadAxisTarget(axis: axis, target: target)
+        } else {
+            loadAxisTarget = nil
+        }
     }
 
     private func saveItem() {
@@ -153,6 +192,16 @@ struct SupersetItemEditorView: View {
         // Save alt_group
         if let altGroup = altGroup {
             itemDict["alt_group"] = altGroup
+        }
+        if let groupRole = groupRole,
+           !groupRole.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            itemDict["group_role"] = groupRole
+        }
+        if let loadAxisTarget = loadAxisTarget {
+            itemDict["load_axis_target"] = [
+                "axis": loadAxisTarget.axis,
+                "target": loadAxisTarget.target
+            ]
         }
 
         onSave(itemDict)

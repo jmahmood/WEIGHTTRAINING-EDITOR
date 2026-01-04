@@ -408,9 +408,64 @@ pub fn show_generic_segment_edit_dialog(
         _ => return, // Should not happen
     };
 
+    let (group_role, per_week_json, load_axis_target_json) = match segment {
+        weightlifting_core::Segment::Straight(s) => (
+            s.base.group_role.as_deref(),
+            s.base
+                .per_week
+                .as_ref()
+                .and_then(|pw| serde_json::to_string(pw).ok()),
+            s.base
+                .load_axis_target
+                .as_ref()
+                .and_then(|lat| serde_json::to_string(lat).ok()),
+        ),
+        weightlifting_core::Segment::Rpe(r) => (
+            r.base.group_role.as_deref(),
+            r.base
+                .per_week
+                .as_ref()
+                .and_then(|pw| serde_json::to_string(pw).ok()),
+            r.base
+                .load_axis_target
+                .as_ref()
+                .and_then(|lat| serde_json::to_string(lat).ok()),
+        ),
+        weightlifting_core::Segment::Amrap(a) => (
+            a.base.group_role.as_deref(),
+            a.base
+                .per_week
+                .as_ref()
+                .and_then(|pw| serde_json::to_string(pw).ok()),
+            a.base
+                .load_axis_target
+                .as_ref()
+                .and_then(|lat| serde_json::to_string(lat).ok()),
+        ),
+        weightlifting_core::Segment::Time(t) => (
+            t.base.group_role.as_deref(),
+            t.base
+                .per_week
+                .as_ref()
+                .and_then(|pw| serde_json::to_string(pw).ok()),
+            t.base
+                .load_axis_target
+                .as_ref()
+                .and_then(|lat| serde_json::to_string(lat).ok()),
+        ),
+        _ => (None, None, None),
+    };
+
     // Create UI sections using shared components
-    let (base_section, ex_entry, label_entry, alt_entry) =
-        create_base_segment_section(&ex, label, alt_group);
+    let (base_section, ex_entry, label_entry, alt_entry, group_role_entry, per_week_entry, load_axis_target_entry) =
+        create_base_segment_section(
+            &ex,
+            label,
+            alt_group,
+            group_role,
+            per_week_json.as_deref(),
+            load_axis_target_json.as_deref(),
+        );
     content.append(&base_section);
     alt_entry.set_sensitive(false);
 
@@ -464,6 +519,37 @@ pub fn show_generic_segment_edit_dialog(
             } else {
                 Some(alt_entry.text().to_string())
             };
+            let group_role_text = if group_role_entry.text().is_empty() {
+                None
+            } else {
+                Some(group_role_entry.text().to_string())
+            };
+            let per_week_text = if per_week_entry.text().is_empty() {
+                None
+            } else {
+                match serde_json::from_str::<std::collections::HashMap<String, serde_json::Value>>(
+                    &per_week_entry.text(),
+                ) {
+                    Ok(map) => Some(map),
+                    Err(e) => {
+                        println!("Invalid per_week JSON: {}", e);
+                        None
+                    }
+                }
+            };
+            let load_axis_target_text = if load_axis_target_entry.text().is_empty() {
+                None
+            } else {
+                match serde_json::from_str::<weightlifting_core::LoadAxisTarget>(
+                    &load_axis_target_entry.text(),
+                ) {
+                    Ok(t) => Some(t),
+                    Err(e) => {
+                        println!("Invalid load_axis_target JSON: {}", e);
+                        None
+                    }
+                }
+            };
             let rpe_val = if rpe_entry.value() > 0.0 { Some(rpe_entry.value()) } else { None };
             let rest_val = if rest_entry.value() > 0.0 { Some(rest_entry.value() as u32) } else { None };
 
@@ -476,7 +562,7 @@ pub fn show_generic_segment_edit_dialog(
                         let max_reps_val = Some(max_reps_entry.value() as u32);
                         use crate::operations::segment::update_straight_segment;
                         update_straight_segment(state.clone(), day_index, segment_index,
-                            ex_text, label_text, alt_text, sets_val, min_reps_val, max_reps_val, rpe_val, rest_val);
+                            ex_text, label_text, alt_text, group_role_text.clone(), per_week_text.clone(), load_axis_target_text.clone(), sets_val, min_reps_val, max_reps_val, rpe_val, rest_val);
                     }
                 },
                 weightlifting_core::Segment::Rpe(_) => {
@@ -487,7 +573,7 @@ pub fn show_generic_segment_edit_dialog(
                         let rpe_val = rpe_entry.value(); // RPE is required for RPE segments
                         use crate::operations::segment::update_rpe_segment;
                         update_rpe_segment(state.clone(), day_index, segment_index,
-                            ex_text, label_text, alt_text, sets_val, min_reps_val, max_reps_val, rpe_val, rest_val);
+                            ex_text, label_text, alt_text, group_role_text.clone(), per_week_text.clone(), load_axis_target_text.clone(), sets_val, min_reps_val, max_reps_val, rpe_val, rest_val);
                     }
                 },
                 weightlifting_core::Segment::Amrap(_) => {
@@ -496,13 +582,13 @@ pub fn show_generic_segment_edit_dialog(
                         let cap_reps = max_reps_entry.value() as u32;
                         use crate::operations::segment::update_amrap_segment;
                         update_amrap_segment(state.clone(), day_index, segment_index,
-                            ex_text, label_text, alt_text, base_reps, cap_reps);
+                            ex_text, label_text, alt_text, group_role_text.clone(), per_week_text.clone(), load_axis_target_text.clone(), base_reps, cap_reps);
                     }
                 },
                 weightlifting_core::Segment::Time(_) => {
                     use crate::operations::segment::update_time_segment;
                     update_time_segment(state.clone(), day_index, segment_index,
-                        ex_text, label_text, alt_text, rpe_val, rest_val);
+                        ex_text, label_text, alt_text, group_role_text.clone(), per_week_text.clone(), load_axis_target_text.clone(), rpe_val, rest_val);
                 },
                 _ => {}
             }
@@ -543,12 +629,28 @@ pub fn show_edit_percentage_dialog(
             .spacing(12)
             .build();
 
+        let group_role = p.base.group_role.as_deref();
+        let per_week_json = p
+            .base
+            .per_week
+            .as_ref()
+            .and_then(|pw| serde_json::to_string(pw).ok());
+        let load_axis_target_json = p
+            .base
+            .load_axis_target
+            .as_ref()
+            .and_then(|lat| serde_json::to_string(lat).ok());
+
         // Base segment section
-        let (base_section, ex_entry, label_entry, alt_entry) = create_base_segment_section(
-            &p.base.ex,
-            p.base.label.as_deref(),
-            p.base.alt_group.as_deref(),
-        );
+        let (base_section, ex_entry, label_entry, alt_entry, group_role_entry, per_week_entry, load_axis_target_entry) =
+            create_base_segment_section(
+                &p.base.ex,
+                p.base.label.as_deref(),
+                p.base.alt_group.as_deref(),
+                group_role,
+                per_week_json.as_deref(),
+                load_axis_target_json.as_deref(),
+            );
         content.append(&base_section);
         alt_entry.set_sensitive(false);
         let alt_group_label_dd = Label::new(Some("Alternative Group:"));
@@ -666,7 +768,7 @@ pub fn show_edit_percentage_dialog(
         dialog.content_area().append(&content);
 
         dialog.connect_response(
-            clone!(@strong state, @strong prescriptions_box => move |dialog, response| {
+            clone!(@strong state, @strong prescriptions_box, @strong group_role_entry, @strong per_week_entry, @strong load_axis_target_entry => move |dialog, response| {
                 if response == ResponseType::Accept {
                     let ex_text = ex_entry.text().to_string();
                     let label_text = if label_entry.text().is_empty() {
@@ -678,6 +780,37 @@ pub fn show_edit_percentage_dialog(
                         None
                     } else {
                         Some(alt_entry.text().to_string())
+                    };
+                    let group_role_text = if group_role_entry.text().is_empty() {
+                        None
+                    } else {
+                        Some(group_role_entry.text().to_string())
+                    };
+                    let per_week_text = if per_week_entry.text().is_empty() {
+                        None
+                    } else {
+                        match serde_json::from_str::<std::collections::HashMap<String, serde_json::Value>>(
+                            &per_week_entry.text(),
+                        ) {
+                            Ok(map) => Some(map),
+                            Err(e) => {
+                                println!("Invalid per_week JSON: {}", e);
+                                None
+                            }
+                        }
+                    };
+                    let load_axis_target_text = if load_axis_target_entry.text().is_empty() {
+                        None
+                    } else {
+                        match serde_json::from_str::<weightlifting_core::LoadAxisTarget>(
+                            &load_axis_target_entry.text(),
+                        ) {
+                            Ok(t) => Some(t),
+                            Err(e) => {
+                                println!("Invalid load_axis_target JSON: {}", e);
+                                None
+                            }
+                        }
                     };
 
                     // Collect prescriptions from UI
@@ -710,7 +843,7 @@ pub fn show_edit_percentage_dialog(
 
                     use crate::operations::segment::update_percentage_segment;
                     update_percentage_segment(state.clone(), day_index, segment_index,
-                        ex_text, label_text, alt_text, prescriptions);
+                        ex_text, label_text, alt_text, group_role_text, per_week_text, load_axis_target_text, prescriptions);
                 }
                 dialog.close();
             }),

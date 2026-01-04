@@ -9,6 +9,7 @@ struct GroupPicker: View {
 
     @State private var searchText = ""
     @State private var isSearching = false
+    @EnvironmentObject private var appState: AppState
 
     var filteredGroups: [String] {
         let allGroups = Array(plan.groups.keys).sorted()
@@ -74,6 +75,14 @@ struct GroupPicker: View {
                         isSearching = true
                     }) {
                         Text("Change")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.borderless)
+
+                    Button(action: {
+                        appState.focusedGroupName = selected
+                    }) {
+                        Text("Edit")
                             .font(.caption)
                     }
                     .buttonStyle(.borderless)

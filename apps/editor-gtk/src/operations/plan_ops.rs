@@ -50,6 +50,9 @@ pub fn add_rpe_set_to_plan(
             base: BaseSegment {
                 ex: ex_code,
                 alt_group,
+                group_role: None,
+                per_week: None,
+                load_axis_target: None,
                 label: Some(ex_label.clone()),
                 optional: None,
                 technique: None,
@@ -127,6 +130,9 @@ pub fn add_percentage_set_to_plan(
             base: BaseSegment {
                 ex: ex_code,
                 alt_group: None,
+                group_role: None,
+                per_week: None,
+                load_axis_target: None,
                 label: Some(percentage_label.clone()),
                 optional: None,
                 technique: None,
@@ -201,6 +207,9 @@ pub fn add_amrap_to_plan(
             base: BaseSegment {
                 ex: ex_code,
                 alt_group: None,
+                group_role: None,
+                per_week: None,
+                load_axis_target: None,
                 label: Some(ex_label.clone()),
                 optional: None,
                 technique: None,
@@ -270,6 +279,9 @@ pub fn add_superset_to_plan(
                 time_sec: None,
                 rpe: exercise.rpe,
                 alt_group: exercise.alt_group.clone(),
+                group_role: None,
+                per_week: None,
+                load_axis_target: None,
                 intensifier: None,
             })
             .collect();
@@ -338,22 +350,25 @@ pub fn add_circuit_to_plan(
             plan.schedule.push(day);
         }
         let items: Vec<CircuitItem> = exercises
-            .iter()
-            .map(|exercise| CircuitItem {
-                ex: exercise.ex_code.clone(),
-                reps: if exercise.time_sec.is_some() {
-                    None
-                } else {
-                    Some(RepsOrRange::Range(RepsRange {
-                        min: exercise.reps_min,
-                        max: exercise.reps_max,
-                        target: None,
-                    }))
-                },
-                time_sec: exercise.time_sec.map(TimeOrRange::Fixed),
-                alt_group: None,
-            })
-            .collect();
+                .iter()
+                .map(|exercise| CircuitItem {
+                    ex: exercise.ex_code.clone(),
+                    reps: if exercise.time_sec.is_some() {
+                        None
+                    } else {
+                        Some(RepsOrRange::Range(RepsRange {
+                            min: exercise.reps_min,
+                            max: exercise.reps_max,
+                            target: None,
+                        }))
+                    },
+                    time_sec: exercise.time_sec.map(TimeOrRange::Fixed),
+                    alt_group: None,
+                    group_role: None,
+                    per_week: None,
+                    load_axis_target: None,
+                })
+                .collect();
 
         let circuit_segment = CircuitSegment {
             rounds,
@@ -421,6 +436,9 @@ pub fn update_superset_in_plan(
                     time_sec: None,
                     rpe: exercise.rpe,
                     alt_group: exercise.alt_group.clone(),
+                    group_role: None,
+                    per_week: None,
+                    load_axis_target: None,
                     intensifier: None,
                 })
                 .collect();
@@ -484,6 +502,9 @@ pub fn add_time_based_to_plan(
             base: BaseSegment {
                 ex: ex_code,
                 alt_group: None,
+                group_role: None,
+                per_week: None,
+                load_axis_target: None,
                 label: Some(ex_label.clone()),
                 optional: None,
                 technique: None,
@@ -594,6 +615,9 @@ pub fn add_scheme_to_plan(
             base: BaseSegment {
                 ex: ex_code,
                 alt_group: None,
+                group_role: None,
+                per_week: None,
+                load_axis_target: None,
                 label: Some(ex_label.clone()),
                 optional: None,
                 technique: None,
@@ -673,6 +697,9 @@ pub fn add_complex_to_plan(
                 target: None,
             }),
             alt_group: None,
+            group_role: None,
+            per_week: None,
+            load_axis_target: None,
         }];
         let complex_segment = ComplexSegment {
             anchor_load,
@@ -741,6 +768,9 @@ pub fn update_circuit_in_plan(
                         reps,
                         time_sec,
                         alt_group: None,
+                        group_role: None,
+                        per_week: None,
+                        load_axis_target: None,
                     }
                 })
                 .collect();
@@ -973,6 +1003,9 @@ pub fn add_group_choose_to_plan(
                     base: BaseSegment {
                         ex: ex_code,
                         alt_group: None,
+                        group_role: None,
+                        per_week: None,
+                        load_axis_target: None,
                         label: Some(ex_label),
                         optional: None,
                         technique: None,

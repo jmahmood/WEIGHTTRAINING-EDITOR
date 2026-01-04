@@ -353,16 +353,16 @@ pub fn show_exercise_editor_dialog(state: Arc<Mutex<AppState>>, ctx: ExerciseEdi
                     use crate::operations::segment::{update_straight_segment, update_rpe_segment, update_amrap_segment, update_time_segment};
                     match segment {
                         weightlifting_core::Segment::Straight(_) => update_straight_segment(
-                            state.clone(), *day_index, *segment_index, ex_code, Some(ex_label), alt_group, Some(sets), Some(min_reps), Some(max_reps), Some(rpe), None
+                            state.clone(), *day_index, *segment_index, ex_code, Some(ex_label), alt_group, None, None, None, Some(sets), Some(min_reps), Some(max_reps), Some(rpe), None
                         ),
                         weightlifting_core::Segment::Rpe(_) => update_rpe_segment(
-                            state.clone(), *day_index, *segment_index, ex_code, Some(ex_label), alt_group, sets, Some(min_reps), Some(max_reps), rpe, None
+                            state.clone(), *day_index, *segment_index, ex_code, Some(ex_label), alt_group, None, None, None, sets, Some(min_reps), Some(max_reps), rpe, None
                         ),
                         weightlifting_core::Segment::Amrap(_) => update_amrap_segment(
-                            state.clone(), *day_index, *segment_index, ex_code, Some(ex_label), alt_group, min_reps, max_reps
+                            state.clone(), *day_index, *segment_index, ex_code, Some(ex_label), alt_group, None, None, None, min_reps, max_reps
                         ),
                         weightlifting_core::Segment::Time(_) => update_time_segment(
-                            state.clone(), *day_index, *segment_index, ex_code, Some(ex_label), alt_group, Some(rpe), None
+                            state.clone(), *day_index, *segment_index, ex_code, Some(ex_label), alt_group, None, None, None, Some(rpe), None
                         ),
                         _ => {}
                     }

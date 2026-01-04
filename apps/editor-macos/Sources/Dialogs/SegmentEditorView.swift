@@ -30,6 +30,8 @@ struct SegmentEditorView: View {
     @State private var straightRpe = 8.5
     @State private var altGroup: String?
     @State private var commentText = ""
+    @State private var groupRole: String?
+    @State private var loadAxisTarget: LoadAxisTarget?
 
     // Superset/Circuit fields
     @State private var label = ""
@@ -126,8 +128,37 @@ struct SegmentEditorView: View {
             )
         }
 
-        Section("Alternative Group (Optional)") {
+        Section("Alternative Group") {
             GroupPicker(plan: plan, selectedGroup: $altGroup)
+        }
+
+        Section("Group Focus") {
+            GroupRolePicker(
+                groupId: altGroup,
+                availableRoles: altGroup.map { plan.getRolesForGroup($0) } ?? [],
+                selectedRole: $groupRole
+            )
+            if groupRole != nil && altGroup == nil {
+                Text("Group focus requires an alternative group.")
+                    .font(.caption)
+                    .foregroundColor(.orange)
+            }
+        }
+
+        Section("Resistance Target") {
+            let loadAxes = plan.getLoadAxesForExercise(exerciseCode)
+            if loadAxes.isEmpty {
+                Text("No alternative resistance types defined for this exercise.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            } else {
+                LoadAxisTargetPicker(availableAxes: loadAxes, target: $loadAxisTarget)
+            }
+            if loadAxisTarget != nil && loadAxes.isEmpty {
+                Text("Resistance target is set but no resistance types are defined.")
+                    .font(.caption)
+                    .foregroundColor(.orange)
+            }
         }
 
         Section("Sets & Reps") {
@@ -164,8 +195,37 @@ struct SegmentEditorView: View {
             )
         }
 
-        Section("Alternative Group (Optional)") {
+        Section("Alternative Group") {
             GroupPicker(plan: plan, selectedGroup: $schemeAltGroup)
+        }
+
+        Section("Group Focus") {
+            GroupRolePicker(
+                groupId: schemeAltGroup,
+                availableRoles: schemeAltGroup.map { plan.getRolesForGroup($0) } ?? [],
+                selectedRole: $groupRole
+            )
+            if groupRole != nil && schemeAltGroup == nil {
+                Text("Group focus requires an alternative group.")
+                    .font(.caption)
+                    .foregroundColor(.orange)
+            }
+        }
+
+        Section("Resistance Target") {
+            let loadAxes = plan.getLoadAxesForExercise(exerciseCode)
+            if loadAxes.isEmpty {
+                Text("No alternative resistance types defined for this exercise.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            } else {
+                LoadAxisTargetPicker(availableAxes: loadAxes, target: $loadAxisTarget)
+            }
+            if loadAxisTarget != nil && loadAxes.isEmpty {
+                Text("Resistance target is set but no resistance types are defined.")
+                    .font(.caption)
+                    .foregroundColor(.orange)
+            }
         }
 
         Section("Scheme Sets") {
@@ -384,6 +444,14 @@ struct SegmentEditorView: View {
 
             // Load alt_group (optional)
             altGroup = dict["alt_group"] as? String
+            groupRole = dict["group_role"] as? String
+            if let axisDict = dict["load_axis_target"] as? [String: Any],
+               let axis = axisDict["axis"] as? String,
+               let target = axisDict["target"] as? String {
+                loadAxisTarget = LoadAxisTarget(axis: axis, target: target)
+            } else {
+                loadAxisTarget = nil
+            }
 
             // Check if reps is an object with min/max
             if let repsObj = dict["reps"] as? [String: Any],
@@ -430,6 +498,14 @@ struct SegmentEditorView: View {
 
             // Load alt_group (optional)
             schemeAltGroup = dict["alt_group"] as? String
+            groupRole = dict["group_role"] as? String
+            if let axisDict = dict["load_axis_target"] as? [String: Any],
+               let axis = axisDict["axis"] as? String,
+               let target = axisDict["target"] as? String {
+                loadAxisTarget = LoadAxisTarget(axis: axis, target: target)
+            } else {
+                loadAxisTarget = nil
+            }
 
             // Load sets array
             if let setsArray = dict["sets"] as? [[String: Any]] {
@@ -490,6 +566,16 @@ struct SegmentEditorView: View {
             if let altGroup = altGroup {
                 segmentDict["alt_group"] = altGroup
             }
+            if let groupRole = groupRole,
+               !groupRole.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                segmentDict["group_role"] = groupRole
+            }
+            if let loadAxisTarget = loadAxisTarget {
+                segmentDict["load_axis_target"] = [
+                    "axis": loadAxisTarget.axis,
+                    "target": loadAxisTarget.target
+                ]
+            }
 
             if useRepsRange {
                 segmentDict["reps"] = [
@@ -527,6 +613,16 @@ struct SegmentEditorView: View {
             // Add alt_group if selected
             if let altGroup = schemeAltGroup {
                 segmentDict["alt_group"] = altGroup
+            }
+            if let groupRole = groupRole,
+               !groupRole.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                segmentDict["group_role"] = groupRole
+            }
+            if let loadAxisTarget = loadAxisTarget {
+                segmentDict["load_axis_target"] = [
+                    "axis": loadAxisTarget.axis,
+                    "target": loadAxisTarget.target
+                ]
             }
 
             // Convert schemeSets to array of dictionaries
@@ -613,6 +709,8 @@ struct SegmentEditorView: View {
         straightRpe = 8.5
         altGroup = nil
         commentText = ""
+        groupRole = nil
+        loadAxisTarget = nil
         label = ""
         rounds = 2
         supersetRestSec = 60

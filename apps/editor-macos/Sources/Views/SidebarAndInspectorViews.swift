@@ -8,6 +8,7 @@ struct ExerciseSidebarView: View {
     @State private var showingAddExercise = false
     @State private var showingAddGroup = false
     @State private var selectedGroupForEdit: String?
+    @State private var selectedExerciseForDefaults: String?
 
     var body: some View {
         VStack(spacing: 8) {
@@ -41,15 +42,28 @@ struct ExerciseSidebarView: View {
                 plan: plan,
                 groupName: groupIdentifier.name,
                 exercises: plan.groups[groupIdentifier.name] ?? [],
-                onSave: { updated in
+                onSave: { updated, variants in
                     appState.pushUndo(plan.planJSON, label: "Edit Group")
                     updateGroup(groupIdentifier.name, exercises: updated)
+                    var allVariants = plan.getGroupVariants()
+                    if variants.isEmpty {
+                        allVariants.removeValue(forKey: groupIdentifier.name)
+                    } else {
+                        allVariants[groupIdentifier.name] = variants
+                    }
+                    plan.updateGroupVariants(allVariants)
                 },
                 onDelete: {
                     appState.pushUndo(plan.planJSON, label: "Delete Group")
                     deleteGroup(groupIdentifier.name)
                 }
             )
+        }
+        .sheet(item: Binding(
+            get: { selectedExerciseForDefaults.map { ExerciseIdentifier(code: $0) } },
+            set: { selectedExerciseForDefaults = $0?.code }
+        )) { exerciseIdentifier in
+            ExerciseRoleDefaultsEditorView(plan: plan, exerciseCode: exerciseIdentifier.code)
         }
     }
 
@@ -71,12 +85,22 @@ struct ExerciseSidebarView: View {
             .padding(.horizontal)
 
             List(filteredExercises, id: \.key) { key, value in
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(value)
-                        .font(.body)
-                    Text(key)
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
+                HStack(spacing: 8) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(value)
+                            .font(.body)
+                        Text(key)
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    Button {
+                        selectedExerciseForDefaults = key
+                    } label: {
+                        Image(systemName: "pencil")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Edit exercise defaults")
                 }
                 .padding(.vertical, 4)
                 .help("Code: \(key)")
@@ -103,6 +127,7 @@ struct ExerciseSidebarView: View {
                         appState.pushUndo(plan.planJSON, label: "Add Group")
                         addNewGroup(name)
                         showingAddGroup = false
+                        selectedGroupForEdit = name
                     }
                 }
 
@@ -209,6 +234,9 @@ struct ExerciseSidebarView: View {
         do {
             let updatedJSON = try RustBridge.removeGroup(name: name, from: plan.planJSON)
             plan.updatePlan(updatedJSON)
+            var variants = plan.getGroupVariants()
+            variants.removeValue(forKey: name)
+            plan.updateGroupVariants(variants)
         } catch {
             print("Error deleting group: \(error)")
         }
@@ -279,7 +307,7 @@ struct InspectorView: View {
                     .padding()
                 }
             } else {
-                InspectorEmptyState()
+                InspectorEmptyState(plan: plan)
             }
         }
         .toolbar {
@@ -320,17 +348,27 @@ private struct GroupEditContainer: View {
             plan: plan,
             groupName: groupName,
             exercises: exercises,
-            onSave: { updated in
+            onSave: { updated, variants in
                 appState.pushUndo(plan.planJSON, label: "Edit Group")
                 if let updatedJSON = try? RustBridge.addGroup(name: groupName, exercises: updated, to: plan.planJSON) {
                     plan.updatePlan(updatedJSON)
                 }
+                var allVariants = plan.getGroupVariants()
+                if variants.isEmpty {
+                    allVariants.removeValue(forKey: groupName)
+                } else {
+                    allVariants[groupName] = variants
+                }
+                plan.updateGroupVariants(allVariants)
             },
             onDelete: {
                 appState.pushUndo(plan.planJSON, label: "Delete Group")
                 if let updatedJSON = try? RustBridge.removeGroup(name: groupName, from: plan.planJSON) {
                     plan.updatePlan(updatedJSON)
                 }
+                var variants = plan.getGroupVariants()
+                variants.removeValue(forKey: groupName)
+                plan.updateGroupVariants(variants)
                 dismiss()
             }
         )
@@ -354,20 +392,53 @@ struct InspectorMetricRow: View {
 }
 
 struct InspectorEmptyState: View {
+    @ObservedObject var plan: PlanDocument
+    @EnvironmentObject var appState: AppState
+    @State private var showGroupVariantsEditor = false
+    @State private var showLoadAxesEditor = false
+
     var body: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "cursorarrow.rays")
-                .font(.system(size: 40))
-                .foregroundColor(.secondary)
-            Text("No Selection")
-                .font(.headline)
-            Text("Select a segment on the canvas to inspect or edit its details.")
-                .font(.caption)
-                .multilineTextAlignment(.center)
-                .foregroundColor(.secondary)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                VStack(spacing: 8) {
+                    Image(systemName: "cursorarrow.rays")
+                        .font(.system(size: 40))
+                        .foregroundColor(.secondary)
+                    Text("No Selection")
+                        .font(.headline)
+                    Text("Select a segment on the canvas to inspect or edit its details.")
+                        .font(.caption)
+                        .multilineTextAlignment(.center)
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.bottom, 8)
+
+                Divider()
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Plan Tools")
+                        .font(.headline)
+
+                    Button("Edit Alternative Resistance Types") {
+                        showLoadAxesEditor = true
+                    }
+                    .buttonStyle(.borderedProminent)
+
+                    Button("Edit Default Rep Ranges") {
+                        showGroupVariantsEditor = true
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+            }
+            .padding()
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-        .padding(.horizontal)
+        .sheet(isPresented: $showGroupVariantsEditor) {
+            GroupVariantsEditorView(plan: plan)
+        }
+        .sheet(isPresented: $showLoadAxesEditor) {
+            LoadAxesEditorView(plan: plan)
+        }
     }
 }
 
@@ -648,6 +719,13 @@ struct NewExerciseForm: View {
     @State private var errorMessage: String?
     @State private var successMessage: String?
 
+    @State private var strengthMin: Int = 0
+    @State private var strengthMax: Int = 0
+    @State private var volumeMin: Int = 0
+    @State private var volumeMax: Int = 0
+    @State private var enduranceMin: Int = 0
+    @State private var enduranceMax: Int = 0
+
     private let patternOptions = [
         "SQ","BP","DL","OHP","ROW","PULLUP","DIP","HINGE","LUNGE","CALF","CORE","CARRY","CURL","EXT","RAISE","Custom…"
     ]
@@ -746,6 +824,48 @@ struct NewExerciseForm: View {
             TextField("Exercise Name (e.g., Bench Press)", text: $exerciseName)
                 .textFieldStyle(.roundedBorder)
 
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Default Role Reps")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 8) {
+                    GridRow {
+                        Text("")
+                        Text("Min")
+                            .font(.caption)
+                        Text("Max")
+                            .font(.caption)
+                    }
+                    GridRow {
+                        Text("Strength")
+                        TextField("", value: $strengthMin, format: .number)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 60)
+                        TextField("", value: $strengthMax, format: .number)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 60)
+                    }
+                    GridRow {
+                        Text("Volume")
+                        TextField("", value: $volumeMin, format: .number)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 60)
+                        TextField("", value: $volumeMax, format: .number)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 60)
+                    }
+                    GridRow {
+                        Text("Endurance")
+                        TextField("", value: $enduranceMin, format: .number)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 60)
+                        TextField("", value: $enduranceMax, format: .number)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 60)
+                    }
+                }
+            }
+
             HStack {
                 Button(action: addExercise) {
                     Label("Add Exercise", systemImage: "plus.circle")
@@ -825,12 +945,19 @@ struct NewExerciseForm: View {
         do {
             appState.pushUndo(plan.planJSON, label: "Add Exercise")
             try plan.addExercise(code: code, name: nameText)
+            updateExerciseDefaults(for: code)
             successMessage = "Added \(nameText)"
             errorMessage = nil
             variant = ""
             exerciseName = ""
             customPattern = ""
             customImplement = ""
+            strengthMin = 0
+            strengthMax = 0
+            volumeMin = 0
+            volumeMax = 0
+            enduranceMin = 0
+            enduranceMax = 0
         } catch {
             errorMessage = error.localizedDescription
             successMessage = nil
@@ -840,6 +967,21 @@ struct NewExerciseForm: View {
     private func clearFeedback() {
         errorMessage = nil
         successMessage = nil
+    }
+
+    private func updateExerciseDefaults(for code: String) {
+        var roleReps: [String: RoleRepsRange] = [:]
+        if strengthMin > 0 && strengthMax > 0 {
+            roleReps["strength"] = RoleRepsRange(min: strengthMin, max: strengthMax)
+        }
+        if volumeMin > 0 && volumeMax > 0 {
+            roleReps["volume"] = RoleRepsRange(min: volumeMin, max: volumeMax)
+        }
+        if enduranceMin > 0 && enduranceMax > 0 {
+            roleReps["endurance"] = RoleRepsRange(min: enduranceMin, max: enduranceMax)
+        }
+        guard !roleReps.isEmpty else { return }
+        plan.updateExerciseRoleDefaults(for: code, roleReps: roleReps)
     }
 }
 
@@ -874,6 +1016,11 @@ struct AddExerciseSheet: View {
 struct GroupIdentifier: Identifiable {
     let name: String
     var id: String { name }
+}
+
+struct ExerciseIdentifier: Identifiable {
+    let code: String
+    var id: String { code }
 }
 
 struct AddNewGroupDialog: View {

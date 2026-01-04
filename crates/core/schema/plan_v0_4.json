@@ -1,0 +1,427 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schema/plan_v0_4.json",
+  "type": "object",
+  "required": ["name", "unit", "dictionary", "schedule"],
+  "properties": {
+    "name": {"type": "string"},
+    "author": {"type": "string"},
+    "source_url": {"type": "string", "format": "uri"},
+    "license_note": {"type": "string"},
+    "unit": {"enum": ["kg", "lb", "bw"]},
+    "dictionary": {
+      "type": "object",
+      "patternProperties": {
+        "^[A-Z0-9_.]+$": {"type": "string"}
+      }
+    },
+    "groups": {
+      "type": "object",
+      "patternProperties": {
+        "^GROUP_[A-Z_]+$": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      }
+    },
+    "group_variants": {
+      "type": "object",
+      "description": "Per-group, per-role, per-exercise partial segment overrides",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "object",
+          "additionalProperties": {"type": "object"}
+        }
+      }
+    },
+    "exercise_meta": {
+      "type": "object",
+      "patternProperties": {
+        ".*": {
+          "type": "object",
+          "properties": {
+            "equipment": {"type": "array", "items": {"type": "string"}},
+            "home_friendly": {"type": "boolean"},
+            "load_axes": {
+              "type": "object",
+              "description": "Non-weight load axes (band color, machine notch, etc.)",
+              "additionalProperties": {"$ref": "#/$defs/LoadAxis"}
+            }
+          }
+        }
+      }
+    },
+    "phase": {
+      "type": "object",
+      "required": ["index", "weeks"],
+      "properties": {
+        "index": {"type": "integer", "minimum": 1},
+        "weeks": {"type": "array", "items": {"type": "integer"}}
+      }
+    },
+    "week_overrides": {
+      "type": "object",
+      "patternProperties": {
+        "^[0-9]+$": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/WeekOverride"}
+        }
+      }
+    },
+    "equipment_policy": {"$ref": "#/$defs/EquipmentPolicy"},
+    "progression": {"$ref": "#/$defs/Progression"},
+    "warmup": {"$ref": "#/$defs/WarmupConfig"},
+    "schedule": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/Day"}
+    }
+  },
+  "$defs": {
+    "Day": {
+      "type": "object",
+      "required": ["day", "label", "segments"],
+      "properties": {
+        "day": {"type": "integer", "minimum": 1},
+        "label": {"type": "string"},
+        "time_cap_min": {"type": "integer", "minimum": 1},
+        "goal": {"type": "string"},
+        "equipment_policy": {"$ref": "#/$defs/EquipmentPolicy"},
+        "segments": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/Segment"}
+        }
+      }
+    },
+    "Segment": {
+      "oneOf": [
+        {"$ref": "#/$defs/StraightSegment"},
+        {"$ref": "#/$defs/RpeSegment"},
+        {"$ref": "#/$defs/PercentageSegment"},
+        {"$ref": "#/$defs/AmrapSegment"},
+        {"$ref": "#/$defs/SupersetSegment"},
+        {"$ref": "#/$defs/CircuitSegment"},
+        {"$ref": "#/$defs/SchemeSegment"},
+        {"$ref": "#/$defs/ComplexSegment"},
+        {"$ref": "#/$defs/CommentSegment"},
+        {"$ref": "#/$defs/ChooseSegment"}
+      ]
+    },
+    "StraightSegment": {
+      "type": "object",
+      "required": ["type", "ex"],
+      "properties": {
+        "type": {"const": "straight"},
+        "ex": {"type": "string"},
+        "alt_group": {"type": "string"},
+        "sets": {"type": "integer", "minimum": 1},
+        "sets_range": {"$ref": "#/$defs/Range"},
+        "reps": {"$ref": "#/$defs/RepsOrRange"},
+        "time_sec": {"$ref": "#/$defs/TimeOrRange"},
+        "rest_sec": {"$ref": "#/$defs/RestOrRange"},
+        "rir": {"type": "number"},
+        "rpe": {"type": "number"},
+        "tempo": {"$ref": "#/$defs/Tempo"},
+        "vbt": {"$ref": "#/$defs/Vbt"},
+        "load_mode": {"enum": ["added", "assisted", "bodyweight_only"]},
+        "label": {"type": "string"},
+        "optional": {"type": "boolean"},
+        "technique": {"type": "object"},
+        "equipment_policy": {"$ref": "#/$defs/EquipmentPolicy"},
+        "intensifier": {"$ref": "#/$defs/Intensifier"},
+        "auto_stop": {"$ref": "#/$defs/AutoStop"}
+      }
+    },
+    "RpeSegment": {
+      "type": "object",
+      "required": ["type", "ex", "sets", "rpe"],
+      "properties": {
+        "type": {"const": "rpe"},
+        "ex": {"type": "string"},
+        "alt_group": {"type": "string"},
+        "sets": {"type": "integer", "minimum": 1},
+        "reps": {"$ref": "#/$defs/RepsOrRange"},
+        "time_sec": {"$ref": "#/$defs/TimeOrRange"},
+        "rpe": {"type": "number"},
+        "rest_sec": {"$ref": "#/$defs/RestOrRange"},
+        "anchor": {"$ref": "#/$defs/Anchor"},
+        "label": {"type": "string"},
+        "optional": {"type": "boolean"},
+        "technique": {"type": "object"},
+        "equipment_policy": {"$ref": "#/$defs/EquipmentPolicy"}
+      }
+    },
+    "CommentSegment": {
+      "type": "object",
+      "required": ["type", "text"],
+      "properties": {
+        "type": {"const": "comment"},
+        "text": {"type": "string"},
+        "icon": {"type": "string"}
+      }
+    },
+    "Range": {
+      "type": "object",
+      "required": ["min", "max"],
+      "properties": {
+        "min": {"type": "integer", "minimum": 1},
+        "max": {"type": "integer", "minimum": 1}
+      }
+    },
+    "RepsOrRange": {
+      "type": "object",
+      "required": ["min", "max"],
+      "properties": {
+        "min": {"type": "integer", "minimum": 1},
+        "max": {"type": "integer", "minimum": 1},
+        "target": {"type": "integer", "minimum": 1}
+      }
+    },
+    "TimeOrRange": {
+      "oneOf": [
+        {"type": "integer", "minimum": 1},
+        {
+          "type": "object",
+          "required": ["min", "max"],
+          "properties": {
+            "min": {"type": "integer", "minimum": 1},
+            "max": {"type": "integer", "minimum": 1},
+            "target": {"type": "integer", "minimum": 1}
+          }
+        }
+      ]
+    },
+    "RestOrRange": {
+      "oneOf": [
+        {"type": "integer", "minimum": 0},
+        {
+          "type": "object",
+          "required": ["min", "max"],
+          "properties": {
+            "min": {"type": "integer", "minimum": 0},
+            "max": {"type": "integer", "minimum": 0}
+          }
+        }
+      ]
+    },
+    "Tempo": {
+      "type": "object",
+      "required": ["ecc", "bottom", "con", "top", "units"],
+      "properties": {
+        "ecc": {"type": "integer", "minimum": 0, "maximum": 10},
+        "bottom": {"type": "integer", "minimum": 0, "maximum": 10},
+        "con": {"type": "integer", "minimum": 0, "maximum": 10},
+        "top": {"type": "integer", "minimum": 0, "maximum": 10},
+        "units": {"type": "string"}
+      }
+    },
+    "Vbt": {
+      "type": "object",
+      "required": ["target_mps"],
+      "properties": {
+        "target_mps": {"type": "number"},
+        "loss_cap_pct": {"type": "integer"}
+      }
+    },
+    "Intensifier": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": {"enum": ["dropset", "rest_pause", "myo", "cluster"]},
+        "when": {"type": "string"},
+        "drop_pct": {"type": "number"},
+        "steps": {"type": "integer"},
+        "clusters": {"type": "integer"},
+        "reps_per_cluster": {"type": "integer"},
+        "intra_rest_sec": {"type": "integer"}
+      }
+    },
+    "LoadAxis": {
+      "type": "object",
+      "required": ["kind", "values"],
+      "properties": {
+        "kind": {"enum": ["categorical", "ordinal"]},
+        "values": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "LoadAxisTarget": {
+      "type": "object",
+      "required": ["axis"],
+      "properties": {
+        "axis": {"type": "string"},
+        "target": {"type": "string"}
+      }
+    },
+    "PerWeekOverlay": {
+      "type": "object",
+      "patternProperties": {
+        "^[1-9][0-9]*$": {"type": "object"}
+      }
+    }
+    "AutoStop": {
+      "type": "object",
+      "required": ["reason", "threshold"],
+      "properties": {
+        "reason": {"type": "string"},
+        "threshold": {"type": "integer"}
+      }
+    },
+    "Anchor": {
+      "type": "object",
+      "required": ["of_set_index", "multiplier"],
+      "properties": {
+        "of_set_index": {"type": "integer", "minimum": 0},
+        "multiplier": {"type": "number"}
+      }
+    },
+    "EquipmentPolicy": {
+      "type": "object",
+      "properties": {
+        "allowed": {"type": "array", "items": {"type": "string"}},
+        "forbidden": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "Progression": {
+      "type": "object",
+      "properties": {
+        "mode": {"type": "string"},
+        "reps_first": {"type": "boolean"},
+        "load_increment_kg": {"type": "number"},
+        "cap_rpe": {"type": "number"}
+      }
+    },
+    "WarmupConfig": {
+      "type": "object",
+      "properties": {
+        "pattern": {"type": "string"},
+        "stages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["pct_1rm", "reps"],
+            "properties": {
+              "pct_1rm": {"type": "number"},
+              "reps": {"type": "integer"}
+            }
+          }
+        },
+        "round_to": {"type": "number"},
+        "merge_after_rounding": {"type": "boolean"}
+      }
+    },
+    "WeekOverride": {
+      "type": "object",
+      "required": ["target", "modifier"],
+      "properties": {
+        "target": {
+          "type": "object",
+          "required": ["day", "segment_idx"],
+          "properties": {
+            "day": {"type": "integer"},
+            "segment_idx": {"type": "integer"}
+          }
+        },
+        "modifier": {
+          "type": "object",
+          "properties": {
+            "rpe_cap": {"type": "number"}
+          }
+        }
+      }
+    },
+    "PercentageSegment": {
+      "type": "object",
+      "required": ["type", "ex", "prescriptions"],
+      "properties": {
+        "type": {"const": "percentage"},
+        "ex": {"type": "string"},
+        "prescriptions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["sets", "reps", "pct_1rm"],
+            "properties": {
+              "sets": {"type": "integer"},
+              "reps": {"type": "integer"},
+              "pct_1rm": {"type": "number"}
+            }
+          }
+        }
+      }
+    },
+    "AmrapSegment": {
+      "type": "object",
+      "required": ["type", "ex", "base_reps", "cap_reps"],
+      "properties": {
+        "type": {"const": "amrap"},
+        "ex": {"type": "string"},
+        "base_reps": {"type": "integer"},
+        "cap_reps": {"type": "integer"}
+      }
+    },
+    "SupersetSegment": {
+      "type": "object",
+      "required": ["type", "rounds", "rest_sec", "rest_between_rounds_sec", "items"],
+      "properties": {
+        "type": {"const": "superset"},
+        "label": {"type": "string"},
+        "pairing": {"type": "string"},
+        "rounds": {"type": "integer"},
+        "rest_sec": {"type": "integer"},
+        "rest_between_rounds_sec": {"type": "integer"},
+        "items": {"type": "array", "minItems": 2, "maxItems": 2}
+      }
+    },
+    "CircuitSegment": {
+      "type": "object",
+      "required": ["type", "rounds", "rest_sec", "rest_between_rounds_sec", "items"],
+      "properties": {
+        "type": {"const": "circuit"},
+        "rounds": {"type": "integer"},
+        "rest_sec": {"type": "integer"},
+        "rest_between_rounds_sec": {"type": "integer"},
+        "items": {"type": "array", "minItems": 3}
+      }
+    },
+    "SchemeSegment": {
+      "type": "object",
+      "required": ["type", "ex", "sets"],
+      "properties": {
+        "type": {"const": "scheme"},
+        "ex": {"type": "string"},
+        "sets": {"type": "array"},
+        "load_mode": {"enum": ["added", "assisted", "bodyweight_only"]}
+      }
+    },
+    "ComplexSegment": {
+      "type": "object",
+      "required": ["type", "anchor_load", "sets", "rest_sec", "sequence"],
+      "properties": {
+        "type": {"const": "complex"},
+        "anchor_load": {
+          "type": "object",
+          "required": ["mode"],
+          "properties": {
+            "mode": {"enum": ["pct_1rm", "fixed_kg"]},
+            "ex": {"type": "string"},
+            "pct": {"type": "number"},
+            "kg": {"type": "number"}
+          }
+        },
+        "sets": {"type": "integer"},
+        "rest_sec": {"type": "integer"},
+        "sequence": {"type": "array"}
+      }
+    },
+    "ChooseSegment": {
+      "type": "object",
+      "required": ["type", "pick", "from"],
+      "properties": {
+        "type": {"const": "choose"},
+        "pick": {"type": "integer", "minimum": 1},
+        "rotation": {"enum": ["weekly", "session", "random", "none"]},
+        "from": {"type": "array", "items": {"$ref": "#/$defs/Segment"}}
+      }
+    }
+  }
+}

@@ -16,6 +16,9 @@ struct InlineSegmentEditorV2: View {
     @State private var rpe: Double = 8.0
     @State private var notes: String = ""
     @State private var altGroup: String? = nil
+    @State private var groupRole: String? = nil
+    @State private var perWeekJSON: String = ""
+    @State private var loadAxisTarget: LoadAxisTarget? = nil
 
     // Track if ANY field has been modified
     @State private var hasChanges = false
@@ -149,6 +152,56 @@ struct InlineSegmentEditorV2: View {
                     onChange: { hasChanges = true }
                 )
             }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Group Focus")
+                    .font(.caption)
+                GroupRolePicker(
+                    groupId: altGroup,
+                    availableRoles: altGroup.map { plan.getRolesForGroup($0) } ?? [],
+                    selectedRole: $groupRole
+                )
+                .onChange(of: groupRole) { _ in hasChanges = true }
+                if groupRole != nil && altGroup == nil {
+                    Text("Group focus requires an alternative group.")
+                        .font(.caption)
+                        .foregroundColor(.orange)
+                }
+
+                Text("Per-Week Overlay (JSON)")
+                    .font(.caption)
+                TextEditor(text: $perWeekJSON)
+                    .font(.system(.body, design: .monospaced))
+                    .frame(height: 70)
+                    .border(Color.gray.opacity(0.3))
+                    .onChange(of: perWeekJSON) { _ in hasChanges = true }
+
+                Text("Resistance Target")
+                    .font(.caption)
+                if let exerciseCode = segment.exerciseCode {
+                    let loadAxes = plan.getLoadAxesForExercise(exerciseCode)
+                    if loadAxes.isEmpty {
+                        Text("No alternative resistance types defined for this exercise.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    } else {
+                        LoadAxisTargetPicker(
+                            availableAxes: loadAxes,
+                            target: $loadAxisTarget
+                        )
+                        .onChange(of: loadAxisTarget) { _ in hasChanges = true }
+                    }
+                    if loadAxisTarget != nil && loadAxes.isEmpty {
+                        Text("Resistance target is set but no resistance types are defined.")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    }
+                } else {
+                    Text("Select an exercise to use resistance types.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
         }
         .onAppear {
             loadCurrentValues()
@@ -191,6 +244,31 @@ struct InlineSegmentEditorV2: View {
             updatedDict["alt_group"] = altGroup
         } else {
             updatedDict.removeValue(forKey: "alt_group")
+        }
+
+        if let groupRole = groupRole,
+           !groupRole.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            updatedDict["group_role"] = groupRole
+        } else {
+            updatedDict.removeValue(forKey: "group_role")
+        }
+
+        if !perWeekJSON.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            if let data = perWeekJSON.data(using: .utf8),
+               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                updatedDict["per_week"] = obj
+            }
+        } else {
+            updatedDict.removeValue(forKey: "per_week")
+        }
+
+        if let target = loadAxisTarget {
+            updatedDict["load_axis_target"] = [
+                "axis": target.axis,
+                "target": target.target
+            ]
+        } else {
+            updatedDict.removeValue(forKey: "load_axis_target")
         }
 
         do {
@@ -239,6 +317,21 @@ struct InlineSegmentEditorV2: View {
         rpe = segment.rpeValue ?? 8.0
         notes = segment.inspectorNote ?? ""
         altGroup = segment.altGroupCode
+        groupRole = segment.segmentDict["group_role"] as? String
+        if let perWeek = segment.segmentDict["per_week"],
+           let data = try? JSONSerialization.data(withJSONObject: perWeek, options: [.prettyPrinted, .sortedKeys]),
+           let str = String(data: data, encoding: .utf8) {
+            perWeekJSON = str
+        } else {
+            perWeekJSON = ""
+        }
+        if let axisDict = segment.segmentDict["load_axis_target"] as? [String: Any],
+           let axis = axisDict["axis"] as? String,
+           let target = axisDict["target"] as? String {
+            loadAxisTarget = LoadAxisTarget(axis: axis, target: target)
+        } else {
+            loadAxisTarget = nil
+        }
         hasChanges = false
     }
 }

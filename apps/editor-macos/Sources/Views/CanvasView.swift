@@ -185,6 +185,7 @@ struct DayView: View {
     let focusCanvas: () -> Void
     @EnvironmentObject var appState: AppState
     @State private var highlightAnimation = false
+    @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
 
     private var isRecent: Bool {
         appState.recentlyAddedDayIndex == day.id
@@ -277,6 +278,14 @@ struct DayView: View {
     }
 
     private var dayHeaderBackground: Color {
+        if differentiateWithoutColor {
+            // High contrast mode: use stronger opacity
+            if isRecent {
+                return Color.accentColor.opacity(0.4)
+            }
+            return isSelected ? Color.accentColor.opacity(0.3) : Color.clear
+        }
+
         if isRecent {
             return Color.accentColor.opacity(0.2)
         }
@@ -292,6 +301,7 @@ struct SegmentRowView: View {
     let focusCanvas: () -> Void
     @EnvironmentObject var appState: AppState
     @State private var highlightAnimation = false
+    @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -468,6 +478,14 @@ struct SegmentRowView: View {
     }
 
     private var backgroundColor: Color {
+        if differentiateWithoutColor {
+            // High contrast mode: use stronger opacity
+            if isRecent {
+                return Color.accentColor.opacity(0.5)
+            }
+            return isSelected ? Color.accentColor.opacity(0.4) : Color(NSColor.controlBackgroundColor)
+        }
+
         if isRecent {
             return Color.accentColor.opacity(0.25)
         }

@@ -208,6 +208,9 @@ pub fn add_custom_exercise_to_day(
             base: BaseSegment {
                 ex: ex_code,
                 alt_group,
+                group_role: None,
+                per_week: None,
+                load_axis_target: None,
                 label: Some(ex_label.clone()),
                 optional: None,
                 technique: None,
@@ -472,6 +475,9 @@ pub fn update_straight_segment(
     ex: String,
     label: Option<String>,
     alt_group: Option<String>,
+    group_role: Option<String>,
+    per_week: Option<std::collections::HashMap<String, serde_json::Value>>,
+    load_axis_target: Option<weightlifting_core::LoadAxisTarget>,
     sets: Option<u32>,
     min_reps: Option<u32>,
     max_reps: Option<u32>,
@@ -493,6 +499,9 @@ pub fn update_straight_segment(
                     straight.base.ex = ex;
                     straight.base.label = label;
                     straight.base.alt_group = alt_group;
+                    straight.base.group_role = group_role;
+                    straight.base.per_week = per_week;
+                    straight.base.load_axis_target = load_axis_target;
                     straight.sets = sets;
                     if let (Some(min), Some(max)) = (min_reps, max_reps) {
                         straight.reps = Some(weightlifting_core::RepsOrRange::Range(
@@ -532,6 +541,9 @@ pub fn update_rpe_segment(
     ex: String,
     label: Option<String>,
     alt_group: Option<String>,
+    group_role: Option<String>,
+    per_week: Option<std::collections::HashMap<String, serde_json::Value>>,
+    load_axis_target: Option<weightlifting_core::LoadAxisTarget>,
     sets: u32,
     min_reps: Option<u32>,
     max_reps: Option<u32>,
@@ -553,6 +565,9 @@ pub fn update_rpe_segment(
                     rpe_seg.base.ex = ex;
                     rpe_seg.base.label = label;
                     rpe_seg.base.alt_group = alt_group;
+                    rpe_seg.base.group_role = group_role;
+                    rpe_seg.base.per_week = per_week;
+                    rpe_seg.base.load_axis_target = load_axis_target;
                     rpe_seg.sets = sets;
                     if let (Some(min), Some(max)) = (min_reps, max_reps) {
                         rpe_seg.reps = Some(weightlifting_core::RepsOrRange::Range(
@@ -592,6 +607,9 @@ pub fn update_amrap_segment(
     ex: String,
     label: Option<String>,
     alt_group: Option<String>,
+    group_role: Option<String>,
+    per_week: Option<std::collections::HashMap<String, serde_json::Value>>,
+    load_axis_target: Option<weightlifting_core::LoadAxisTarget>,
     base_reps: u32,
     cap_reps: u32,
 ) {
@@ -610,6 +628,9 @@ pub fn update_amrap_segment(
                     amrap.base.ex = ex;
                     amrap.base.label = label;
                     amrap.base.alt_group = alt_group;
+                    amrap.base.group_role = group_role;
+                    amrap.base.per_week = per_week;
+                    amrap.base.load_axis_target = load_axis_target;
                     amrap.base_reps = base_reps;
                     amrap.cap_reps = cap_reps;
 
@@ -637,6 +658,9 @@ pub fn update_time_segment(
     ex: String,
     label: Option<String>,
     alt_group: Option<String>,
+    group_role: Option<String>,
+    per_week: Option<std::collections::HashMap<String, serde_json::Value>>,
+    load_axis_target: Option<weightlifting_core::LoadAxisTarget>,
     rpe: Option<f64>,
     _rest_sec: Option<u32>,
 ) {
@@ -655,6 +679,9 @@ pub fn update_time_segment(
                     time_seg.base.ex = ex;
                     time_seg.base.label = label;
                     time_seg.base.alt_group = alt_group;
+                    time_seg.base.group_role = group_role;
+                    time_seg.base.per_week = per_week;
+                    time_seg.base.load_axis_target = load_axis_target;
                     time_seg.rpe = rpe;
 
                     app_state.mark_modified();
@@ -681,6 +708,9 @@ pub fn update_percentage_segment(
     ex: String,
     label: Option<String>,
     alt_group: Option<String>,
+    group_role: Option<String>,
+    per_week: Option<std::collections::HashMap<String, serde_json::Value>>,
+    load_axis_target: Option<weightlifting_core::LoadAxisTarget>,
     prescriptions: Vec<weightlifting_core::PercentagePrescription>,
 ) {
     let mut app_state = state.lock().unwrap();
@@ -698,6 +728,9 @@ pub fn update_percentage_segment(
                     pct_seg.base.ex = ex;
                     pct_seg.base.label = label;
                     pct_seg.base.alt_group = alt_group;
+                    pct_seg.base.group_role = group_role;
+                    pct_seg.base.per_week = per_week;
+                    pct_seg.base.load_axis_target = load_axis_target;
                     pct_seg.prescriptions = prescriptions;
 
                     app_state.mark_modified();

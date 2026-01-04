@@ -72,11 +72,24 @@ struct MainWindowView: View {
                 onSave: { /* Groups are updated directly via FFI */ }
             )
         }
+        .sheet(isPresented: $appState.showGroupVariantsEditor) {
+            GroupVariantsEditorView(plan: document.planDocument)
+        }
+        .sheet(isPresented: $appState.showLoadAxesEditor) {
+            LoadAxesEditorView(plan: document.planDocument)
+        }
         .sheet(item: $appState.previewToken) { token in
             SegmentPreviewSheet(plan: document.planDocument, token: token)
         }
         .sheet(isPresented: $appState.showDayEditor) {
             DayEditorView(plan: document.planDocument)
+                .environmentObject(appState)
+        }
+        .sheet(item: Binding(
+            get: { appState.focusedGroupName.map { FocusedGroupIdentifier(name: $0) } },
+            set: { appState.focusedGroupName = $0?.name }
+        )) { identifier in
+            GroupEditSheet(plan: document.planDocument, groupName: identifier.name)
                 .environmentObject(appState)
         }
         .onAppear {
@@ -140,6 +153,51 @@ struct MainWindowView: View {
             print("Failed to save segment: \(error)")
             // Show error to user
         }
+    }
+}
+
+private struct FocusedGroupIdentifier: Identifiable {
+    let name: String
+    var id: String { name }
+}
+
+private struct GroupEditSheet: View {
+    @ObservedObject var plan: PlanDocument
+    let groupName: String
+    @EnvironmentObject var appState: AppState
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        let exercises = plan.groups[groupName] ?? []
+        SingleGroupEditorView(
+            plan: plan,
+            groupName: groupName,
+            exercises: exercises,
+            onSave: { updated, variants in
+                appState.pushUndo(plan.planJSON, label: "Edit Group")
+                if let updatedJSON = try? RustBridge.addGroup(name: groupName, exercises: updated, to: plan.planJSON) {
+                    plan.updatePlan(updatedJSON)
+                }
+                var allVariants = plan.getGroupVariants()
+                if variants.isEmpty {
+                    allVariants.removeValue(forKey: groupName)
+                } else {
+                    allVariants[groupName] = variants
+                }
+                plan.updateGroupVariants(allVariants)
+                dismiss()
+            },
+            onDelete: {
+                appState.pushUndo(plan.planJSON, label: "Delete Group")
+                if let updatedJSON = try? RustBridge.removeGroup(name: groupName, from: plan.planJSON) {
+                    plan.updatePlan(updatedJSON)
+                }
+                var variants = plan.getGroupVariants()
+                variants.removeValue(forKey: groupName)
+                plan.updateGroupVariants(variants)
+                dismiss()
+            }
+        )
     }
 }
 

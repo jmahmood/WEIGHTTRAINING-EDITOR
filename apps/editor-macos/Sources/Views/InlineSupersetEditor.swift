@@ -24,6 +24,9 @@ struct InlineSupersetEditor: View {
         var restSec: Int?
         var rpe: Double?
         var note: String?
+        var altGroup: String?
+        var groupRole: String?
+        var loadAxisTarget: LoadAxisTarget?
     }
 
     var body: some View {
@@ -157,7 +160,10 @@ struct InlineSupersetEditor: View {
             isRange: false,
             restSec: nil,
             rpe: nil,
-            note: nil
+            note: nil,
+            altGroup: nil,
+            groupRole: nil,
+            loadAxisTarget: nil
         )
         exercises.append(newExercise)
         hasChanges = true
@@ -184,6 +190,14 @@ struct InlineSupersetEditor: View {
             let rpe = entry["rpe"] as? Double
             let restSec = entry["rest_sec"] as? Int
             let note = entry["note"] as? String
+            let altGroup = entry["alt_group"] as? String
+            let groupRole = entry["group_role"] as? String
+            var loadAxisTarget: LoadAxisTarget? = nil
+            if let axisDict = entry["load_axis_target"] as? [String: Any],
+               let axis = axisDict["axis"] as? String,
+               let target = axisDict["target"] as? String {
+                loadAxisTarget = LoadAxisTarget(axis: axis, target: target)
+            }
 
             var isRange = false
             var reps = 8
@@ -211,7 +225,10 @@ struct InlineSupersetEditor: View {
                 isRange: isRange,
                 restSec: restSec,
                 rpe: rpe,
-                note: note
+                note: note,
+                altGroup: altGroup,
+                groupRole: groupRole,
+                loadAxisTarget: loadAxisTarget
             )
         }
 
@@ -260,6 +277,19 @@ struct InlineSupersetEditor: View {
             }
             if let note = ex.note, !note.isEmpty {
                 exDict["note"] = note
+            }
+            if let altGroup = ex.altGroup, !altGroup.isEmpty {
+                exDict["alt_group"] = altGroup
+            }
+            if let groupRole = ex.groupRole,
+               !groupRole.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                exDict["group_role"] = groupRole
+            }
+            if let loadAxisTarget = ex.loadAxisTarget {
+                exDict["load_axis_target"] = [
+                    "axis": loadAxisTarget.axis,
+                    "target": loadAxisTarget.target
+                ]
             }
 
             return exDict
@@ -314,6 +344,54 @@ struct ExerciseEditor: View {
             }
 
             if !exercise.exerciseCode.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Alternative Group (Optional):")
+                        .font(.caption)
+                    GroupPicker(
+                        plan: plan,
+                        selectedGroup: $exercise.altGroup,
+                        onChange: { onChange() }
+                    )
+                }
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Group Focus")
+                        .font(.caption)
+                    GroupRolePicker(
+                        groupId: exercise.altGroup,
+                        availableRoles: exercise.altGroup.map { plan.getRolesForGroup($0) } ?? [],
+                        selectedRole: $exercise.groupRole
+                    )
+                    .onChange(of: exercise.groupRole) { _ in onChange() }
+                    if exercise.groupRole != nil && exercise.altGroup == nil {
+                        Text("Group focus requires an alternative group.")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Resistance Target")
+                        .font(.caption)
+                    let loadAxes = plan.getLoadAxesForExercise(exercise.exerciseCode)
+                    if loadAxes.isEmpty {
+                        Text("No alternative resistance types defined for this exercise.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    } else {
+                        LoadAxisTargetPicker(
+                            availableAxes: loadAxes,
+                            target: $exercise.loadAxisTarget
+                        )
+                        .onChange(of: exercise.loadAxisTarget) { _ in onChange() }
+                    }
+                    if exercise.loadAxisTarget != nil && loadAxes.isEmpty {
+                        Text("Resistance target is set but no resistance types are defined.")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    }
+                }
+
                 // Sets
                 HStack {
                     Text("Sets:")

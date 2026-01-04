@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::HashMap;
 
 /// Top-level plan object matching v0.3 spec
@@ -14,6 +15,10 @@ pub struct Plan {
     pub unit: Unit,
     pub dictionary: HashMap<String, String>,
     pub groups: HashMap<String, Vec<String>>,
+    /// v0.4: per-group, per-role, per-exercise overrides
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub group_variants:
+        Option<HashMap<String, HashMap<String, HashMap<String, Value>>>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub exercise_meta: Option<HashMap<String, ExerciseMeta>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -43,6 +48,31 @@ pub struct ExerciseMeta {
     pub equipment: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub home_friendly: Option<bool>,
+    /// v0.4: non-weight load axes such as band color or machine notch
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub load_axes: Option<HashMap<String, LoadAxis>>,
+}
+
+/// v0.4: non-weight load axis definition
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LoadAxis {
+    pub kind: LoadAxisKind,
+    pub values: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum LoadAxisKind {
+    Categorical,
+    Ordinal,
+}
+
+/// v0.4: per-segment axis target
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LoadAxisTarget {
+    pub axis: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -161,6 +191,15 @@ pub struct BaseSegment {
     pub ex: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub alt_group: Option<String>,
+    /// v0.4: role name selecting group_variants overrides
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub group_role: Option<String>,
+    /// v0.4: week-number to partial segment overlay
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub per_week: Option<HashMap<String, Value>>,
+    /// v0.4: non-weight load axis defaults
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub load_axis_target: Option<LoadAxisTarget>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub label: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -265,6 +304,13 @@ pub struct SupersetItem {
     pub rpe: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub alt_group: Option<String>,
+    /// v0.4 extensions
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub group_role: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub per_week: Option<HashMap<String, Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub load_axis_target: Option<LoadAxisTarget>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub intensifier: Option<Intensifier>,
 }
@@ -286,6 +332,13 @@ pub struct CircuitItem {
     pub time_sec: Option<TimeOrRange>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub alt_group: Option<String>,
+    /// v0.4 extensions
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub group_role: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub per_week: Option<HashMap<String, Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub load_axis_target: Option<LoadAxisTarget>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -343,6 +396,13 @@ pub struct ComplexSequenceItem {
     pub ex: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub alt_group: Option<String>,
+    /// v0.4 extensions
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub group_role: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub per_week: Option<HashMap<String, Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub load_axis_target: Option<LoadAxisTarget>,
     pub reps: RepsOrRange,
 }
 
@@ -571,6 +631,7 @@ impl Plan {
             unit: Unit::Kg,
             dictionary: HashMap::new(),
             groups: HashMap::new(),
+            group_variants: None,
             exercise_meta: None,
             phase: None,
             week_overrides: None,
@@ -702,6 +763,9 @@ impl TimeSegment {
             base: BaseSegment {
                 ex,
                 alt_group: None,
+                group_role: None,
+                per_week: None,
+                load_axis_target: None,
                 label: None,
                 optional: None,
                 technique: None,

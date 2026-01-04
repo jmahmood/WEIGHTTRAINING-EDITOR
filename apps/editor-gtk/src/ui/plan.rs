@@ -225,6 +225,9 @@ fn _add_exercise_to_current_plan(state: Arc<Mutex<AppState>>) {
             base: BaseSegment {
                 ex: "BENCH.BB.FLAT".to_string(),
                 alt_group: None,
+                group_role: None,
+                per_week: None,
+                load_axis_target: None,
                 label: Some("Bench Press".to_string()),
                 optional: None,
                 technique: None,

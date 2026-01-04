@@ -22,3 +22,4 @@ pub use versioning::*;
 
 /// The JSON schema for plan validation
 pub const PLAN_SCHEMA_V0_3: &str = include_str!("../schema/plan_v0_3.json");
+pub const PLAN_SCHEMA_V0_4: &str = include_str!("../schema/plan_v0_4.json");

@@ -1,7 +1,7 @@
 //! **Death to Windows!** - Rounding preview unit tests
 
 use super::*;
-use crate::location::LocationProfile;
+use crate::location::{LocationProfile, RoundingPreview, RoundingStrategy};
 
 #[test]
 fn test_barbell_rounding_nearest() {

@@ -84,6 +84,20 @@ struct WeightliftingEditorApp: App {
                 }
             }
 
+            CommandMenu("Default Rep Ranges") {
+                Button("Edit Default Rep Ranges...") {
+                    appState.showGroupVariantsEditor = true
+                }
+                .disabled(appState.activePlan == nil)
+            }
+
+            CommandMenu("Alternative Resistance Types") {
+                Button("Edit Alternative Resistance Types...") {
+                    appState.showLoadAxesEditor = true
+                }
+                .disabled(appState.activePlan == nil)
+            }
+
             CommandGroup(replacing: .help) {
                 Button("Weightlifting Editor Help") {
                     // Open help

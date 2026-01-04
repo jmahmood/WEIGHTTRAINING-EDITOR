@@ -35,6 +35,9 @@ fn test_500_item_validation_performance() {
                     base: BaseSegment {
                         ex: exercise_key,
                         alt_group: None,
+                        group_role: None,
+                        per_week: None,
+                        load_axis_target: None,
                         label: Some(format!("Segment {} of Day {}", seg_num, day_num)),
                         optional: None,
                         technique: None,
@@ -70,6 +73,9 @@ fn test_500_item_validation_performance() {
                     base: BaseSegment {
                         ex: exercise_key,
                         alt_group: None,
+                        group_role: None,
+                        per_week: None,
+                        load_axis_target: None,
                         label: Some(format!("Segment {} of Day {}", seg_num, day_num)),
                         optional: None,
                         technique: None,

@@ -171,7 +171,10 @@ pub fn create_base_segment_section(
     ex: &str,
     label: Option<&str>,
     alt_group: Option<&str>,
-) -> (GtkBox, Entry, Entry, Entry) {
+    group_role: Option<&str>,
+    per_week_json: Option<&str>,
+    load_axis_target_json: Option<&str>,
+) -> (GtkBox, Entry, Entry, Entry, Entry, Entry, Entry) {
     let section = GtkBox::builder()
         .orientation(Orientation::Vertical)
         .spacing(8)
@@ -195,7 +198,47 @@ pub fn create_base_segment_section(
     section.append(&alt_label);
     section.append(&alt_entry);
 
-    (section, ex_entry, label_entry, alt_entry)
+    // v0.4 advanced fields
+    let advanced_box = GtkBox::builder()
+        .orientation(Orientation::Vertical)
+        .spacing(8)
+        .build();
+
+    let role_label = Label::new(Some("Group Role (v0.4, optional):"));
+    let role_entry = Entry::builder().text(group_role.unwrap_or("")).build();
+    role_entry.set_placeholder_text(Some("e.g., heavy, volume"));
+    advanced_box.append(&role_label);
+    advanced_box.append(&role_entry);
+
+    let per_week_label = Label::new(Some("Per-Week Overlay JSON (v0.4, optional):"));
+    let per_week_entry = Entry::builder().text(per_week_json.unwrap_or("")).build();
+    per_week_entry.set_placeholder_text(Some("{\"2\": {\"reps\": {\"min\":12, \"max\":15}}}"));
+    advanced_box.append(&per_week_label);
+    advanced_box.append(&per_week_entry);
+
+    let axis_label = Label::new(Some("Load Axis Target JSON (v0.4, optional):"));
+    let axis_entry = Entry::builder().text(load_axis_target_json.unwrap_or("")).build();
+    axis_entry.set_placeholder_text(Some("{\"axis\":\"band_color\",\"target\":\"green\"}"));
+    advanced_box.append(&axis_label);
+    advanced_box.append(&axis_entry);
+
+    let advanced_expander = Expander::builder()
+        .label("Advanced v0.4")
+        .child(&advanced_box)
+        .expanded(false)
+        .build();
+
+    section.append(&advanced_expander);
+
+    (
+        section,
+        ex_entry,
+        label_entry,
+        alt_entry,
+        role_entry,
+        per_week_entry,
+        axis_entry,
+    )
 }
 
 /// Creates a sets/reps section for basic exercise parameters

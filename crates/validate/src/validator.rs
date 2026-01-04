@@ -34,7 +34,7 @@ impl PlanValidator {
 
         // Compile schema and validate
         if let Ok(schema_value) =
-            serde_json::from_str::<serde_json::Value>(weightlifting_core::PLAN_SCHEMA_V0_3)
+            serde_json::from_str::<serde_json::Value>(weightlifting_core::PLAN_SCHEMA_V0_4)
         {
             if let Ok(schema) = JSONSchema::compile(&schema_value) {
                 if let Err(validation_errors) = schema.validate(&plan_json) {
@@ -60,7 +60,7 @@ impl PlanValidator {
         &self,
         plan: &Plan,
         errors: &mut Vec<ValidationErrorInfo>,
-        _warnings: &mut [ValidationErrorInfo],
+        warnings: &mut Vec<ValidationErrorInfo>,
     ) {
         // Validate exercise code format in dictionary (allow 2 or 3 uppercase segments)
         let code_rx = EX_CODE_REGEX.get_or_init(|| {
@@ -104,7 +104,7 @@ impl PlanValidator {
         for day in &plan.schedule {
             for (segment_idx, segment) in day.segments.iter().enumerate() {
                 let path = format!("/schedule/{}/segments/{}", day.day - 1, segment_idx);
-                self.validate_segment(segment, &path, plan, errors, &mut Vec::new());
+                self.validate_segment(segment, &path, plan, errors, warnings);
             }
         }
     }
@@ -115,7 +115,7 @@ impl PlanValidator {
         path: &str,
         plan: &Plan,
         errors: &mut Vec<ValidationErrorInfo>,
-        _warnings: &mut [ValidationErrorInfo],
+        warnings: &mut Vec<ValidationErrorInfo>,
     ) {
         use weightlifting_core::Segment;
 
@@ -129,6 +129,7 @@ impl PlanValidator {
                 if let Some(tempo) = &s.tempo {
                     self.validate_tempo(tempo, path, errors);
                 }
+                self.validate_v0_4_base(&s.base, "straight", path, plan, errors, warnings);
             }
             Segment::Rpe(s) => {
                 self.validate_exercise(&s.base.ex, path, plan, errors);
@@ -136,30 +137,32 @@ impl PlanValidator {
                     self.validate_alt_group(ag, path, plan, errors);
                 }
                 self.validate_reps_time_conflict(&s.reps, &s.time_sec, path, errors);
+                self.validate_v0_4_base(&s.base, "rpe", path, plan, errors, warnings);
             }
             Segment::Comment(_) => {
                 // Comments don't need exercise validation
             }
             Segment::GroupChoose(g) => {
-                self.validate_group_choose(g, path, plan, errors);
+                self.validate_group_choose(g, path, plan, errors, warnings);
             }
             Segment::GroupRotate(g) => {
-                self.validate_group_rotate(g, path, plan, errors);
+                self.validate_group_rotate(g, path, plan, errors, warnings);
             }
             Segment::GroupOptional(g) => {
-                self.validate_group_optional(g, path, plan, errors);
+                self.validate_group_optional(g, path, plan, errors, warnings);
             }
             Segment::GroupSuperset(g) => {
-                self.validate_group_superset(g, path, plan, errors);
+                self.validate_group_superset(g, path, plan, errors, warnings);
             }
             Segment::Scheme(s) => {
-                self.validate_scheme_segment(s, path, plan, errors);
+                self.validate_scheme_segment(s, path, plan, errors, warnings);
                 if let Some(ag) = &s.base.alt_group {
                     self.validate_alt_group(ag, path, plan, errors);
                 }
+                self.validate_v0_4_base(&s.base, "scheme", path, plan, errors, warnings);
             }
             Segment::Complex(c) => {
-                self.validate_complex_segment(c, path, plan, errors);
+                self.validate_complex_segment(c, path, plan, errors, warnings);
             }
             Segment::Time(t) => {
                 self.validate_exercise(&t.base.ex, path, plan, errors);
@@ -169,9 +172,107 @@ impl PlanValidator {
                 if let Some(interval) = &t.interval {
                     self.validate_interval(interval, path, errors);
                 }
+                self.validate_v0_4_base(&t.base, "time", path, plan, errors, warnings);
             }
             _ => {
                 // TODO: Implement validation for other segment types
+            }
+        }
+    }
+
+    fn validate_v0_4_base(
+        &self,
+        base: &weightlifting_core::BaseSegment,
+        segment_type: &str,
+        path: &str,
+        plan: &Plan,
+        errors: &mut Vec<ValidationErrorInfo>,
+        warnings: &mut Vec<ValidationErrorInfo>,
+    ) {
+        // group_role validation
+        if let Some(role) = &base.group_role {
+            if let Some(group) = &base.alt_group {
+                if let Some(gv) = &plan.group_variants {
+                    if gv
+                        .get(group)
+                        .and_then(|roles| roles.get(role))
+                        .is_none()
+                    {
+                        errors.push(ValidationErrorInfo::new(
+                            ValidationError::E190SchemaViolation,
+                            path,
+                            Some("group_role"),
+                            Some(&format!(
+                                "group_role '{}' not defined for group '{}' in group_variants",
+                                role, group
+                            )),
+                        ));
+                    }
+                } else {
+                    warnings.push(ValidationErrorInfo::new(
+                        ValidationError::E190SchemaViolation,
+                        path,
+                        Some("group_role"),
+                        Some("group_role set but plan has no group_variants"),
+                    ));
+                }
+            } else {
+                warnings.push(ValidationErrorInfo::new(
+                    ValidationError::E190SchemaViolation,
+                    path,
+                    Some("group_role"),
+                    Some("group_role set but alt_group is missing"),
+                ));
+            }
+        }
+
+        // per_week overlay validation
+        if let Some(per_week) = &base.per_week {
+            for (week, overlay) in per_week {
+                if week.parse::<u32>().is_err() {
+                    errors.push(ValidationErrorInfo::new(
+                        ValidationError::E190SchemaViolation,
+                        path,
+                        Some("per_week"),
+                        Some(&format!("Invalid per_week key '{}'", week)),
+                    ));
+                }
+                if let Some(t) = overlay.get("type").and_then(|v| v.as_str()) {
+                    if t != segment_type {
+                        errors.push(ValidationErrorInfo::new(
+                            ValidationError::E190SchemaViolation,
+                            path,
+                            Some("per_week"),
+                            Some(&format!(
+                                "per_week overlay type '{}' does not match base '{}'",
+                                t, segment_type
+                            )),
+                        ));
+                    }
+                }
+            }
+        }
+
+        // load_axis_target validation (warning only if missing)
+        if let Some(target) = &base.load_axis_target {
+            let axis_name = target.axis.as_str();
+            let axis_defined = plan
+                .exercise_meta
+                .as_ref()
+                .and_then(|meta| meta.get(&base.ex))
+                .and_then(|em| em.load_axes.as_ref())
+                .and_then(|axes| axes.get(axis_name))
+                .is_some();
+            if !axis_defined {
+                warnings.push(ValidationErrorInfo::new(
+                    ValidationError::E190SchemaViolation,
+                    path,
+                    Some("load_axis_target"),
+                    Some(&format!(
+                        "load_axis_target axis '{}' not defined for exercise '{}'",
+                        axis_name, base.ex
+                    )),
+                ));
             }
         }
     }
@@ -291,6 +392,7 @@ impl PlanValidator {
         path: &str,
         plan: &Plan,
         errors: &mut Vec<ValidationErrorInfo>,
+        warnings: &mut Vec<ValidationErrorInfo>,
     ) {
         if group.from.is_empty() {
             errors.push(ValidationErrorInfo::new(
@@ -303,7 +405,7 @@ impl PlanValidator {
 
         for (idx, segment) in group.from.iter().enumerate() {
             let segment_path = format!("{}/from/{}", path, idx);
-            self.validate_segment(segment, &segment_path, plan, errors, &mut Vec::new());
+            self.validate_segment(segment, &segment_path, plan, errors, warnings);
         }
     }
 
@@ -313,6 +415,7 @@ impl PlanValidator {
         path: &str,
         plan: &Plan,
         errors: &mut Vec<ValidationErrorInfo>,
+        warnings: &mut Vec<ValidationErrorInfo>,
     ) {
         if group.items.is_empty() {
             errors.push(ValidationErrorInfo::new(
@@ -325,7 +428,7 @@ impl PlanValidator {
 
         for (idx, segment) in group.items.iter().enumerate() {
             let segment_path = format!("{}/items/{}", path, idx);
-            self.validate_segment(segment, &segment_path, plan, errors, &mut Vec::new());
+            self.validate_segment(segment, &segment_path, plan, errors, warnings);
         }
     }
 
@@ -335,6 +438,7 @@ impl PlanValidator {
         path: &str,
         plan: &Plan,
         errors: &mut Vec<ValidationErrorInfo>,
+        warnings: &mut Vec<ValidationErrorInfo>,
     ) {
         if group.items.is_empty() {
             errors.push(ValidationErrorInfo::new(
@@ -347,7 +451,7 @@ impl PlanValidator {
 
         for (idx, segment) in group.items.iter().enumerate() {
             let segment_path = format!("{}/items/{}", path, idx);
-            self.validate_segment(segment, &segment_path, plan, errors, &mut Vec::new());
+            self.validate_segment(segment, &segment_path, plan, errors, warnings);
         }
     }
 
@@ -357,6 +461,7 @@ impl PlanValidator {
         path: &str,
         plan: &Plan,
         errors: &mut Vec<ValidationErrorInfo>,
+        warnings: &mut Vec<ValidationErrorInfo>,
     ) {
         if group.items.is_empty() {
             errors.push(ValidationErrorInfo::new(
@@ -369,7 +474,7 @@ impl PlanValidator {
 
         for (idx, segment) in group.items.iter().enumerate() {
             let segment_path = format!("{}/items/{}", path, idx);
-            self.validate_segment(segment, &segment_path, plan, errors, &mut Vec::new());
+            self.validate_segment(segment, &segment_path, plan, errors, warnings);
         }
     }
 
@@ -379,6 +484,7 @@ impl PlanValidator {
         path: &str,
         plan: &Plan,
         errors: &mut Vec<ValidationErrorInfo>,
+        warnings: &mut Vec<ValidationErrorInfo>,
     ) {
         // Validate the exercise exists
         self.validate_exercise(&scheme.base.ex, path, plan, errors);
@@ -414,7 +520,7 @@ impl PlanValidator {
                             &set_path,
                             plan,
                             errors,
-                            &mut Vec::new(),
+                            warnings,
                         );
                     }
                 }
@@ -436,6 +542,7 @@ impl PlanValidator {
         path: &str,
         plan: &Plan,
         errors: &mut Vec<ValidationErrorInfo>,
+        _warnings: &mut Vec<ValidationErrorInfo>,
     ) {
         // Validate anchor load configuration
         match complex.anchor_load.mode.as_str() {

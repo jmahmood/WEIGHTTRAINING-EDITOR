@@ -226,6 +226,9 @@ fn create_straight_segment(
     let base = BaseSegment {
         ex: exercise.to_string(),
         alt_group: None,
+        group_role: None,
+        per_week: None,
+        load_axis_target: None,
         label,
         optional: None,
         technique: None,

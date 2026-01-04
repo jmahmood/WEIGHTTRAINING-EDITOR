@@ -76,6 +76,253 @@ class PlanDocument: ObservableObject {
         parsed?["groups"] as? [String: [String]] ?? [:]
     }
 
+    func getGroupVariants() -> [String: [String: [String: [String: JSONValue]]]] {
+        guard let variantsAny = parsed?["group_variants"] as? [String: Any] else {
+            return [:]
+        }
+
+        var result: [String: [String: [String: [String: JSONValue]]]] = [:]
+
+        for (groupId, rolesAny) in variantsAny {
+            guard let rolesDict = rolesAny as? [String: Any] else { continue }
+            var roles: [String: [String: [String: JSONValue]]] = [:]
+
+            for (roleId, exercisesAny) in rolesDict {
+                guard let exercisesDict = exercisesAny as? [String: Any] else { continue }
+                var exercises: [String: [String: JSONValue]] = [:]
+
+                for (exerciseCode, overridesAny) in exercisesDict {
+                    guard let overridesDict = overridesAny as? [String: Any] else { continue }
+                    var overrides: [String: JSONValue] = [:]
+
+                    for (key, valueAny) in overridesDict {
+                        if let jsonValue = JSONValue(any: valueAny) {
+                            overrides[key] = jsonValue
+                        }
+                    }
+
+                    exercises[exerciseCode] = overrides
+                }
+
+                roles[roleId] = exercises
+            }
+
+            result[groupId] = roles
+        }
+
+        return result
+    }
+
+    func getRolesForGroup(_ groupId: String) -> [String] {
+        guard groups[groupId] != nil else { return [] }
+        return ["strength", "volume", "endurance"]
+    }
+
+    func getExerciseMeta() -> [String: ExerciseMeta] {
+        guard let metaAny = parsed?["exercise_meta"] as? [String: Any] else {
+            return [:]
+        }
+
+        var result: [String: ExerciseMeta] = [:]
+
+        for (exerciseCode, metaValue) in metaAny {
+            guard let metaDict = metaValue as? [String: Any] else { continue }
+            var loadAxes: [String: LoadAxis] = [:]
+            var roleReps: [String: RoleRepsRange] = [:]
+
+            if let loadAxesAny = metaDict["load_axes"] as? [String: Any] {
+                for (axisName, axisValue) in loadAxesAny {
+                    guard let axisDict = axisValue as? [String: Any] else { continue }
+                    guard let kindRaw = axisDict["kind"] as? String,
+                          let kind = LoadAxisKind(rawValue: kindRaw) else { continue }
+
+                    let valuesAny = axisDict["values"] as? [Any] ?? []
+                    let values = valuesAny.compactMap { value -> String? in
+                        if let string = value as? String {
+                            return string
+                        }
+                        if let number = value as? NSNumber {
+                            return number.stringValue
+                        }
+                        return nil
+                    }
+
+                    loadAxes[axisName] = LoadAxis(kind: kind, values: values)
+                }
+            }
+
+            if let roleRepsAny = metaDict["role_reps"] as? [String: Any] {
+                for (roleName, repsValue) in roleRepsAny {
+                    guard let repsDict = repsValue as? [String: Any],
+                          let min = repsDict["min"] as? Int,
+                          let max = repsDict["max"] as? Int else { continue }
+                    roleReps[roleName] = RoleRepsRange(min: min, max: max)
+                }
+            }
+
+            result[exerciseCode] = ExerciseMeta(loadAxes: loadAxes, roleReps: roleReps)
+        }
+
+        return result
+    }
+
+    func getLoadAxesForExercise(_ exerciseCode: String) -> [String: LoadAxis] {
+        getExerciseMeta()[exerciseCode]?.loadAxes ?? [:]
+    }
+
+    func getRoleRepsDefaults(for exerciseCode: String) -> [String: RoleRepsRange] {
+        getExerciseMeta()[exerciseCode]?.roleReps ?? [:]
+    }
+
+    func updateExerciseRoleDefaults(for exerciseCode: String, roleReps: [String: RoleRepsRange]) {
+        let existingMeta = getExerciseMeta()
+        let oldDefaults = existingMeta[exerciseCode]?.roleReps ?? [:]
+
+        var updatedMeta = existingMeta
+        var entry = updatedMeta[exerciseCode] ?? ExerciseMeta(loadAxes: [:], roleReps: [:])
+        entry.roleReps = roleReps
+        updatedMeta[exerciseCode] = entry
+        updateExerciseMeta(updatedMeta)
+
+        var variants = getGroupVariants()
+        let roles = ["strength", "volume", "endurance"]
+
+        for (groupId, _) in variants {
+            for role in roles {
+                let oldDefault = oldDefaults[role]
+                let newDefault = roleReps[role]
+
+                if oldDefault == nil && newDefault == nil {
+                    continue
+                }
+                if oldDefault?.min == newDefault?.min && oldDefault?.max == newDefault?.max {
+                    continue
+                }
+
+                let override = variants[groupId]?[role]?[exerciseCode]
+                var overrideMin: Int?
+                var overrideMax: Int?
+
+                if let override = override, case .object(let repsObj)? = override["reps"] {
+                    overrideMin = repsObj["min"]?.intValue
+                    overrideMax = repsObj["max"]?.intValue
+                }
+
+                let matchesOldDefault = {
+                    guard let oldDefault = oldDefault,
+                          let overrideMin = overrideMin,
+                          let overrideMax = overrideMax else {
+                        return false
+                    }
+                    return overrideMin == oldDefault.min && overrideMax == oldDefault.max
+                }()
+
+                let isNullish = (overrideMin ?? 0) <= 0 || (overrideMax ?? 0) <= 0
+
+                let shouldPropagate = override == nil || matchesOldDefault || isNullish
+
+                if shouldPropagate {
+                    if let newDefault = newDefault {
+                        if variants[groupId] == nil { variants[groupId] = [:] }
+                        if variants[groupId]?[role] == nil { variants[groupId]?[role] = [:] }
+                        if variants[groupId]?[role]?[exerciseCode] == nil { variants[groupId]?[role]?[exerciseCode] = [:] }
+                        variants[groupId]?[role]?[exerciseCode]?["reps"] = .object([
+                            "min": .number(Double(newDefault.min)),
+                            "max": .number(Double(newDefault.max))
+                        ])
+                    } else {
+                        variants[groupId]?[role]?[exerciseCode]?["reps"] = nil
+                        if variants[groupId]?[role]?[exerciseCode]?.isEmpty == true {
+                            variants[groupId]?[role]?.removeValue(forKey: exerciseCode)
+                        }
+                        if variants[groupId]?[role]?.isEmpty == true {
+                            variants[groupId]?.removeValue(forKey: role)
+                        }
+                        if variants[groupId]?.isEmpty == true {
+                            variants.removeValue(forKey: groupId)
+                        }
+                    }
+                }
+            }
+        }
+
+        updateGroupVariants(variants)
+    }
+
+    func updateGroupVariants(_ variants: [String: [String: [String: [String: JSONValue]]]]) {
+        do {
+            try mutatePlanDictionary { root in
+                guard !variants.isEmpty else {
+                    root.removeValue(forKey: "group_variants")
+                    return
+                }
+
+                var output: [String: Any] = [:]
+                for (groupId, roles) in variants {
+                    var rolesOut: [String: Any] = [:]
+                    for (roleId, exercises) in roles {
+                        var exercisesOut: [String: Any] = [:]
+                        for (exerciseCode, overrides) in exercises {
+                            var overridesOut: [String: Any] = [:]
+                            for (key, value) in overrides {
+                                overridesOut[key] = value.toAny()
+                            }
+                            exercisesOut[exerciseCode] = overridesOut
+                        }
+                        rolesOut[roleId] = exercisesOut
+                    }
+                    output[groupId] = rolesOut
+                }
+
+                root["group_variants"] = output
+            }
+        } catch {
+            print("Failed to update group_variants: \(error)")
+        }
+    }
+
+    func updateExerciseMeta(_ meta: [String: ExerciseMeta]) {
+        do {
+            try mutatePlanDictionary { root in
+                guard !meta.isEmpty else {
+                    root.removeValue(forKey: "exercise_meta")
+                    return
+                }
+
+                var output: [String: Any] = [:]
+                for (exerciseCode, metaValue) in meta {
+                    guard !metaValue.loadAxes.isEmpty || !metaValue.roleReps.isEmpty else { continue }
+                    var axesOut: [String: Any] = [:]
+                    for (axisName, axis) in metaValue.loadAxes {
+                        axesOut[axisName] = axis.toDictionary()
+                    }
+                    var exerciseOut: [String: Any] = [:]
+                    if !axesOut.isEmpty {
+                        exerciseOut["load_axes"] = axesOut
+                    }
+                    if !metaValue.roleReps.isEmpty {
+                        var roleOut: [String: Any] = [:]
+                        for (roleName, reps) in metaValue.roleReps {
+                            roleOut[roleName] = ["min": reps.min, "max": reps.max]
+                        }
+                        exerciseOut["role_reps"] = roleOut
+                    }
+                    if !exerciseOut.isEmpty {
+                        output[exerciseCode] = exerciseOut
+                    }
+                }
+
+                if output.isEmpty {
+                    root.removeValue(forKey: "exercise_meta")
+                } else {
+                    root["exercise_meta"] = output
+                }
+            }
+        } catch {
+            print("Failed to update exercise_meta: \(error)")
+        }
+    }
+
     /// Get display models for days
     var days: [DayDisplay] {
         guard let schedule = parsed?["schedule"] as? [[String: Any]] else {
