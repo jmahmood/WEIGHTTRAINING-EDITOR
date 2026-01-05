@@ -8,11 +8,11 @@
 
 ### iOS
 <p>
-  <img src="./screenshots/Main Menu.png" alt="Main Menu" width="200">
-  <img src="./screenshots/Add New Exercise.png" alt="Add New Exercise to Segment" width="200">
-  <img src="./screenshots/Add Workout Segment 2.png" alt="Add New Segment" width="200">
-  <img src="./screenshots/Modify Exercise Groups.png" alt="Add subtitute exercises" width="200">
-  <img src="./screenshots/Alternative Resistance Types.png" alt="Add alternative types of resistance (bands, etc)" width="200">
+  <img src="./screenshots/MainMenu.png" alt="Main Menu" width="200">
+  <img src="./screenshots/AddNewExercise.png" alt="Add New Exercise to Segment" width="200">
+  <img src="./screenshots/AddWorkoutSegment.png" alt="Add New Segment" width="200">
+  <img src="./screenshots/AlternativeResistanceType.png" alt="Add subtitute exercises" width="200">
+  <img src="./screenshots/ModifyExerciseGroups.png" alt="Add alternative types of resistance (bands, etc)" width="200">
 </p>
 
 <details>
