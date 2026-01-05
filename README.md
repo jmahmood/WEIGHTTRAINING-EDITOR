@@ -12,7 +12,11 @@
   <img src="./screenshots/AddNewExercise.png" alt="Add New Exercise to Segment" width="200">
   <img src="./screenshots/AddWorkoutSegment.png" alt="Add New Segment" width="200">
   <img src="./screenshots/AlternativeResistanceType.png" alt="Add subtitute exercises" width="200">
+  <details>
+  <summary><b>More Screenshots</b></summary>
   <img src="./screenshots/ModifyExerciseGroups.png" alt="Add alternative types of resistance (bands, etc)" width="200">
+
+  </details>
 </p>
 
 <details>
