@@ -43,6 +43,10 @@
           "properties": {
             "equipment": {"type": "array", "items": {"type": "string"}},
             "home_friendly": {"type": "boolean"},
+            "role_reps": {
+              "type": "object",
+              "additionalProperties": {"$ref": "#/$defs/Range"}
+            },
             "load_axes": {
               "type": "object",
               "description": "Non-weight load axes (band color, machine notch, etc.)",

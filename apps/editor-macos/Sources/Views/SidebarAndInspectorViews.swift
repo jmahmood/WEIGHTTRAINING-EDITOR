@@ -467,12 +467,16 @@ struct SegmentDetailView: View {
             switch segment.kind {
             case .straight, .rpe, .percentage, .amrap, .time:
                 InlineSegmentEditorV2(plan: plan, segment: segment)
+                    .id(segment.id)
             case .superset, .circuit:
                 InlineSupersetEditor(plan: plan, segment: segment)
+                    .id(segment.id)
             case .scheme:
                 InlineSchemeEditor(plan: plan, segment: segment)
+                    .id(segment.id)
             case .comment:
                 InlineCommentEditor(plan: plan, segment: segment)
+                    .id(segment.id)
             case .choose:
                 VStack(alignment: .leading, spacing: 12) {
                     ChooseInspectorDetail(pick: segment.intValue("pick"),

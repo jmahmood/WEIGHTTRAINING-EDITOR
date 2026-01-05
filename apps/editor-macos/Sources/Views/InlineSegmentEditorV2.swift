@@ -22,6 +22,7 @@ struct InlineSegmentEditorV2: View {
 
     // Track if ANY field has been modified
     @State private var hasChanges = false
+    @State private var activeSegment: SegmentDisplay? = nil
 
     @FocusState private var focusedField: Field?
 
@@ -54,7 +55,7 @@ struct InlineSegmentEditorV2: View {
                     .keyboardShortcut(.escape, modifiers: [])
 
                     Button("Save (⌘↩)") {
-                        saveChanges()
+                        saveCurrentChanges()
                     }
                     .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.return, modifiers: [.command])
@@ -149,7 +150,10 @@ struct InlineSegmentEditorV2: View {
                 GroupPicker(
                     plan: plan,
                     selectedGroup: $altGroup,
-                    onChange: { hasChanges = true }
+                    onChange: {
+                        hasChanges = true
+                        saveCurrentChanges()
+                    }
                 )
             }
 
@@ -161,12 +165,15 @@ struct InlineSegmentEditorV2: View {
                     availableRoles: altGroup.map { plan.getRolesForGroup($0) } ?? [],
                     selectedRole: $groupRole
                 )
-                .onChange(of: groupRole) { _ in hasChanges = true }
-                if groupRole != nil && altGroup == nil {
-                    Text("Group focus requires an alternative group.")
-                        .font(.caption)
-                        .foregroundColor(.orange)
+                .onChange(of: groupRole) { _ in
+                    hasChanges = true
+                    saveCurrentChanges()
                 }
+                    if groupRole != nil && altGroup == nil {
+                        Text("Group focus requires an alternative group.")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    }
 
                 Text("Per-Week Overlay (JSON)")
                     .font(.caption)
@@ -204,6 +211,14 @@ struct InlineSegmentEditorV2: View {
             }
         }
         .onAppear {
+            activeSegment = segment
+            loadCurrentValues()
+        }
+        .onChange(of: segment.id) { _ in
+            if hasChanges {
+                saveCurrentChanges()
+            }
+            activeSegment = segment
             loadCurrentValues()
         }
         .onChange(of: appState.shouldFocusInspector) { shouldFocus in
@@ -212,15 +227,25 @@ struct InlineSegmentEditorV2: View {
                 appState.shouldFocusInspector = false
             }
         }
+        .onDisappear {
+            if hasChanges {
+                saveCurrentChanges()
+            }
+        }
     }
 
-    private func saveChanges() {
-        ErrorLogger.shared.info("Saving inline edit for segment \(segment.id)")
+    private func saveCurrentChanges() {
+        saveChanges(for: activeSegment ?? segment)
+    }
 
-        var updatedDict = segment.segmentDict
+    private func saveChanges(for targetSegment: SegmentDisplay) {
+        ErrorLogger.shared.info("Saving inline edit for segment \(targetSegment.id)")
+        ErrorLogger.shared.info("altGroup: \(String(describing: altGroup)), groupRole: \(String(describing: groupRole))")
+
+        var updatedDict = targetSegment.segmentDict
 
         if updatedDict["type"] == nil {
-            updatedDict["type"] = segment.type
+            updatedDict["type"] = targetSegment.type
         }
 
         updatedDict["sets"] = sets
@@ -248,9 +273,14 @@ struct InlineSegmentEditorV2: View {
 
         if let groupRole = groupRole,
            !groupRole.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            if let altGroup = altGroup {
+                plan.ensureGroupRoleExists(groupId: altGroup, roleId: groupRole)
+            }
             updatedDict["group_role"] = groupRole
+            ErrorLogger.shared.info("Setting group_role to: \(groupRole)")
         } else {
             updatedDict.removeValue(forKey: "group_role")
+            ErrorLogger.shared.info("Removing group_role (was: \(String(describing: groupRole)))")
         }
 
         if !perWeekJSON.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -274,13 +304,14 @@ struct InlineSegmentEditorV2: View {
         do {
             let jsonData = try JSONSerialization.data(withJSONObject: updatedDict, options: .sortedKeys)
             if let jsonString = String(data: jsonData, encoding: .utf8) {
+                ErrorLogger.shared.info("JSON being saved: \(jsonString)")
                 appState.pushUndo(plan.planJSON, label: "Edit Segment")
-                try plan.updateSegment(jsonString, at: segment.index, inDayAt: segment.dayIndex)
+                try plan.updateSegment(jsonString, at: targetSegment.index, inDayAt: targetSegment.dayIndex)
                 hasChanges = false
-                ErrorLogger.shared.info("Successfully saved segment \(segment.id)")
+                ErrorLogger.shared.info("Successfully saved segment \(targetSegment.id)")
             }
         } catch {
-            ErrorLogger.shared.error("Failed to save segment \(segment.id): \(error.localizedDescription)")
+            ErrorLogger.shared.error("Failed to save segment \(targetSegment.id): \(error.localizedDescription)")
         }
     }
 
@@ -318,6 +349,7 @@ struct InlineSegmentEditorV2: View {
         notes = segment.inspectorNote ?? ""
         altGroup = segment.altGroupCode
         groupRole = segment.segmentDict["group_role"] as? String
+        ErrorLogger.shared.info("Loaded segment \(segment.id): altGroup=\(String(describing: altGroup)), groupRole=\(String(describing: groupRole))")
         if let perWeek = segment.segmentDict["per_week"],
            let data = try? JSONSerialization.data(withJSONObject: perWeek, options: [.prettyPrinted, .sortedKeys]),
            let str = String(data: data, encoding: .utf8) {

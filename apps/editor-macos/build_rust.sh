@@ -9,29 +9,64 @@ echo "Building Rust FFI library..."
 # Navigate to project root
 cd "$(dirname "$0")/../.."
 
-# Build for current architecture
-if [ "$ARCHS" = "arm64" ]; then
-    cargo build --release --target aarch64-apple-darwin -p weightlifting-ffi
-    RUST_TARGET="aarch64-apple-darwin"
-elif [ "$ARCHS" = "x86_64" ]; then
-    cargo build --release --target x86_64-apple-darwin -p weightlifting-ffi
-    RUST_TARGET="x86_64-apple-darwin"
+LIB_NAME="libweightlifting_ffi.dylib"
+
+build_target() {
+    local arch="$1"
+    local target="$2"
+    echo "Building Rust FFI for $arch ($target)..."
+    cargo build --release --target "$target" -p weightlifting-ffi
+}
+
+RUST_LIB_PATHS=()
+
+if [ -n "$ARCHS" ]; then
+    for arch in $ARCHS; do
+        case "$arch" in
+            arm64)
+                build_target "$arch" "aarch64-apple-darwin"
+                RUST_LIB_PATHS+=("target/aarch64-apple-darwin/release/$LIB_NAME")
+                ;;
+            x86_64)
+                build_target "$arch" "x86_64-apple-darwin"
+                RUST_LIB_PATHS+=("target/x86_64-apple-darwin/release/$LIB_NAME")
+                ;;
+            *)
+                echo "Warning: Unsupported ARCHS entry '$arch' - skipping"
+                ;;
+        esac
+    done
 else
-    # Default to native architecture
+    echo "ARCHS not set; building for native target..."
     cargo build --release -p weightlifting-ffi
-    RUST_TARGET="release"
+    RUST_LIB_PATHS+=("target/release/$LIB_NAME")
 fi
 
-echo "Rust library built successfully for $RUST_TARGET"
-
-# Copy dylib to expected location
-if [ "$RUST_TARGET" != "release" ]; then
-    cp "target/$RUST_TARGET/release/libweightlifting_ffi.dylib" "target/release/"
+mkdir -p target/release
+if [ "${#RUST_LIB_PATHS[@]}" -gt 1 ]; then
+    echo "Creating universal dylib..."
+    lipo -create "${RUST_LIB_PATHS[@]}" -output "target/release/$LIB_NAME"
+elif [ "${#RUST_LIB_PATHS[@]}" -eq 1 ]; then
+    cp "${RUST_LIB_PATHS[0]}" "target/release/$LIB_NAME"
+else
+    echo "Error: no Rust dylib produced"
+    exit 1
 fi
 
-# Generate headers with cbindgen
-echo "Generating C headers..."
-cd crates/ffi
-cargo build --release
+echo "Rust library built successfully at target/release/$LIB_NAME"
+
+# Copy dylib into app bundle if build products are available (Xcode build phase)
+if [ -n "$TARGET_BUILD_DIR" ] && [ -n "$FRAMEWORKS_FOLDER_PATH" ]; then
+    echo "Copying dylib into app bundle frameworks..."
+    mkdir -p "$TARGET_BUILD_DIR/$FRAMEWORKS_FOLDER_PATH"
+    cp "target/release/$LIB_NAME" "$TARGET_BUILD_DIR/$FRAMEWORKS_FOLDER_PATH/"
+fi
+
+# Copy dylib into local build app bundle if it exists
+APP_FRAMEWORKS="apps/editor-macos/build/WeightliftingEditor.app/Contents/Frameworks"
+if [ -d "$APP_FRAMEWORKS" ]; then
+    echo "Copying dylib into apps/editor-macos build app bundle..."
+    cp "target/release/$LIB_NAME" "$APP_FRAMEWORKS/"
+fi
 
 echo "Build complete!"

@@ -51,6 +51,8 @@ pub struct ExerciseMeta {
     /// v0.4: non-weight load axes such as band color or machine notch
     #[serde(skip_serializing_if = "Option::is_none")]
     pub load_axes: Option<HashMap<String, LoadAxis>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub role_reps: Option<HashMap<String, Range>>,
 }
 
 /// v0.4: non-weight load axis definition

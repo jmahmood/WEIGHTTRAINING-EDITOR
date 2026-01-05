@@ -139,6 +139,9 @@ struct InlineSchemeEditor: View {
         .onAppear {
             loadCurrentValues()
         }
+        .onChange(of: segment.id) { _ in
+            loadCurrentValues()
+        }
         .onChange(of: appState.shouldFocusInspector) { shouldFocus in
             if shouldFocus {
                 // Consume the flag - scheme editor has complex nested focus
@@ -155,6 +158,7 @@ struct InlineSchemeEditor: View {
 
         altGroup = segment.altGroupCode
         groupRole = segment.segmentDict["group_role"] as? String
+        ErrorLogger.shared.info("Loaded segment \(segment.id): altGroup=\(String(describing: altGroup)), groupRole=\(String(describing: groupRole))")
         if let perWeek = segment.segmentDict["per_week"],
            let data = try? JSONSerialization.data(withJSONObject: perWeek, options: [.prettyPrinted, .sortedKeys]),
            let str = String(data: data, encoding: .utf8) {
@@ -212,6 +216,7 @@ struct InlineSchemeEditor: View {
 
     private func saveChanges() {
         ErrorLogger.shared.info("Saving scheme edit for segment \(segment.id)")
+        ErrorLogger.shared.info("altGroup: \(String(describing: altGroup)), groupRole: \(String(describing: groupRole))")
 
         var updatedDict = segment.segmentDict
 
@@ -253,9 +258,14 @@ struct InlineSchemeEditor: View {
 
         if let groupRole = groupRole,
            !groupRole.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            if let altGroup = altGroup {
+                plan.ensureGroupRoleExists(groupId: altGroup, roleId: groupRole)
+            }
             updatedDict["group_role"] = groupRole
+            ErrorLogger.shared.info("Setting group_role to: \(groupRole)")
         } else {
             updatedDict.removeValue(forKey: "group_role")
+            ErrorLogger.shared.info("Removing group_role (was: \(String(describing: groupRole)))")
         }
 
         if !perWeekJSON.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -279,6 +289,7 @@ struct InlineSchemeEditor: View {
         do {
             let jsonData = try JSONSerialization.data(withJSONObject: updatedDict, options: .sortedKeys)
             if let jsonString = String(data: jsonData, encoding: .utf8) {
+                ErrorLogger.shared.info("JSON being saved: \(jsonString)")
                 appState.pushUndo(plan.planJSON, label: "Edit Scheme")
                 try plan.updateSegment(jsonString, at: segment.index, inDayAt: segment.dayIndex)
                 hasChanges = false

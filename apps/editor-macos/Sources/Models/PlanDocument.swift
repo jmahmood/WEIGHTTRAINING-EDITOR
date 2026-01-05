@@ -249,6 +249,23 @@ class PlanDocument: ObservableObject {
         updateGroupVariants(variants)
     }
 
+    func ensureGroupRoleExists(groupId: String, roleId: String) {
+        guard !groupId.isEmpty, !roleId.isEmpty else { return }
+        do {
+            try mutatePlanDictionary { root in
+                var variants = root["group_variants"] as? [String: Any] ?? [:]
+                var group = variants[groupId] as? [String: Any] ?? [:]
+                if group[roleId] == nil {
+                    group[roleId] = [:]
+                    variants[groupId] = group
+                    root["group_variants"] = variants
+                }
+            }
+        } catch {
+            print("Failed to ensure group role: \(error)")
+        }
+    }
+
     func updateGroupVariants(_ variants: [String: [String: [String: [String: JSONValue]]]]) {
         do {
             try mutatePlanDictionary { root in
@@ -365,6 +382,25 @@ class PlanDocument: ObservableObject {
             in: planJSON
         )
         updatePlan(updatedJSON)
+    }
+
+    func updateSegmentFields(dayIndex: Int, segmentIndex: Int, updates: [String: Any]) throws {
+        try mutatePlanDictionary { root in
+            guard var schedule = root["schedule"] as? [[String: Any]],
+                  schedule.indices.contains(dayIndex),
+                  var segments = schedule[dayIndex]["segments"] as? [[String: Any]],
+                  segments.indices.contains(segmentIndex) else {
+                throw PlanMutationError.invalidStructure
+            }
+
+            var segment = segments[segmentIndex]
+            for (key, value) in updates {
+                segment[key] = value
+            }
+            segments[segmentIndex] = segment
+            schedule[dayIndex]["segments"] = segments
+            root["schedule"] = schedule
+        }
     }
 
     /// Add a day

@@ -567,6 +567,11 @@ struct SegmentEditorView: View {
                 segmentDict["alt_group"] = altGroup
             }
             if let groupRole = groupRole,
+               !groupRole.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+               let altGroup = altGroup {
+                plan.ensureGroupRoleExists(groupId: altGroup, roleId: groupRole)
+            }
+            if let groupRole = groupRole,
                !groupRole.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 segmentDict["group_role"] = groupRole
             }
@@ -613,6 +618,11 @@ struct SegmentEditorView: View {
             // Add alt_group if selected
             if let altGroup = schemeAltGroup {
                 segmentDict["alt_group"] = altGroup
+            }
+            if let groupRole = groupRole,
+               !groupRole.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+               let altGroup = schemeAltGroup {
+                plan.ensureGroupRoleExists(groupId: altGroup, roleId: groupRole)
             }
             if let groupRole = groupRole,
                !groupRole.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -684,8 +694,8 @@ struct SegmentEditorView: View {
         }
 
         // Convert to JSON
-        if let data = try? JSONSerialization.data(withJSONObject: segmentDict, options: .prettyPrinted),
-           let json = String(data: data, encoding: .utf8) {
+            if let data = try? JSONSerialization.data(withJSONObject: segmentDict, options: .prettyPrinted),
+               let json = String(data: data, encoding: .utf8) {
             onSave(json)
             if addAnother && segmentJSON == nil {
                 resetForm()

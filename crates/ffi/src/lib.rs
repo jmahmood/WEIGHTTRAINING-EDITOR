@@ -278,6 +278,10 @@ pub extern "C" fn ffi_segment_update(
         Err(e) => return create_error_result(format!("Failed to parse segment JSON: {}", e)),
     };
 
+    // Debug logging
+    eprintln!("[FFI] Received segment JSON: {}", segment_str);
+    eprintln!("[FFI] Parsed segment: {:?}", segment);
+
     if day_index >= plan.schedule.len() {
         return create_error_result(format!("Day index {} out of bounds", day_index));
     }
@@ -287,6 +291,10 @@ pub extern "C" fn ffi_segment_update(
     }
 
     plan.schedule[day_index].segments[segment_index] = segment;
+
+    // Debug logging - check what we're serializing
+    let updated_segment = &plan.schedule[day_index].segments[segment_index];
+    eprintln!("[FFI] Updated segment in plan: {:?}", updated_segment);
 
     match serde_json::to_string(&plan) {
         Ok(json) => create_success_result(json),

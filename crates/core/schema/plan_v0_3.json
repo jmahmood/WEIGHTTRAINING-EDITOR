@@ -31,7 +31,11 @@
           "type": "object",
           "properties": {
             "equipment": {"type": "array", "items": {"type": "string"}},
-            "home_friendly": {"type": "boolean"}
+            "home_friendly": {"type": "boolean"},
+            "role_reps": {
+              "type": "object",
+              "additionalProperties": {"$ref": "#/$defs/Range"}
+            }
           }
         }
       }

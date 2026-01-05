@@ -142,6 +142,9 @@ struct InlineSupersetEditor: View {
         .onAppear {
             loadCurrentValues()
         }
+        .onChange(of: segment.id) { _ in
+            loadCurrentValues()
+        }
         .onChange(of: appState.shouldFocusInspector) { shouldFocus in
             if shouldFocus {
                 // Consume the flag - superset editor has complex nested focus
@@ -283,6 +286,9 @@ struct InlineSupersetEditor: View {
             }
             if let groupRole = ex.groupRole,
                !groupRole.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                if let altGroup = ex.altGroup {
+                    plan.ensureGroupRoleExists(groupId: altGroup, roleId: groupRole)
+                }
                 exDict["group_role"] = groupRole
             }
             if let loadAxisTarget = ex.loadAxisTarget {
