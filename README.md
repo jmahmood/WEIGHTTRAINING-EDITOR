@@ -4,6 +4,26 @@
 
 ---
 
+## Screenshots
+
+### iOS
+<p>
+  <img src="./screenshots/Main Menu.png" alt="Main Menu" width="200">
+  <img src="./screenshots/Add New Exercise.png" alt="Add New Exercise to Segment" width="200">
+  <img src="./screenshots/Add Workout Segment 2.png" alt="Add New Segment" width="200">
+  <img src="./screenshots/Modify Exercise Groups.png" alt="Add subtitute exercises" width="200">
+  <img src="./screenshots/Alternative Resistance Types.png" alt="Add alternative types of resistance (bands, etc)" width="200">
+</p>
+
+<details>
+<summary><b>Linux</b></summary>
+<br>
+<p>(Coming soon)</p>
+</details>
+
+---
+
+
 **Plan Studio** is a native desktop editor for authoring and validating weight training plans used by **RED ✪ STAR Weightlifting**. It is designed for offline-first plan creation, deterministic exports, and long-term durability of strength programming data.
 
 The application targets self-coached lifters who want precise control over programming without relying on cloud services or mobile devices during training.

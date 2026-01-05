@@ -29,13 +29,20 @@ struct LoadAxisRow: View {
                 Text("Values")
                     .font(.caption)
 
-                ForEach(axis.values.indices, id: \.self) { index in
+                ForEach(Array(axis.values.enumerated()), id: \.offset) { index, value in
                     HStack {
                         TextField("Value", text: Binding(
-                            get: { axis.values[index] },
-                            set: { axis.values[index] = $0 }
+                            get: {
+                                guard index < axis.values.count else { return "" }
+                                return axis.values[index]
+                            },
+                            set: { newValue in
+                                guard index < axis.values.count else { return }
+                                axis.values[index] = newValue
+                            }
                         ))
                         Button("Remove") {
+                            guard index < axis.values.count else { return }
                             axis.values.remove(at: index)
                         }
                         .buttonStyle(.borderless)
