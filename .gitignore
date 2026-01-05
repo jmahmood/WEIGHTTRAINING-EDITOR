@@ -7,3 +7,6 @@ outbox
 */.DS_Store
 .DS_Store
 apps/.DS_Store
+create-app-bundle.sh
+.swiftpm/xcode/
+.swiftpm

@@ -78,6 +78,10 @@ struct MainWindowView: View {
         .sheet(isPresented: $appState.showLoadAxesEditor) {
             LoadAxesEditorView(plan: document.planDocument)
         }
+        .sheet(isPresented: $appState.showPlanProperties) {
+            PlanPropertiesEditorView(plan: document.planDocument)
+                .environmentObject(appState)
+        }
         .sheet(item: $appState.previewToken) { token in
             SegmentPreviewSheet(plan: document.planDocument, token: token)
         }

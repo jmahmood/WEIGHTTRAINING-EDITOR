@@ -22,6 +22,7 @@ class AppState: ObservableObject {
     @Published var showExerciseSearch = false
     @Published var showGroupVariantsEditor = false
     @Published var showLoadAxesEditor = false
+    @Published var showPlanProperties = false
 
     // Inline editing state
     @Published var inlineEditingSegmentId: String?

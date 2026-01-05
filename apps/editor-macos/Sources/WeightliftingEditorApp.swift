@@ -97,6 +97,13 @@ struct WeightliftingEditorApp: App {
                 }
                 .disabled(appState.activePlan == nil)
             }
+            CommandGroup(after: .textEditing) {
+                Button("Properties...") {
+                    appState.showPlanProperties = true
+                }
+                .keyboardShortcut(",", modifiers: [.command, .shift])
+                .disabled(appState.activePlan == nil)
+            }
 
             CommandGroup(replacing: .help) {
                 Button("Weightlifting Editor Help") {

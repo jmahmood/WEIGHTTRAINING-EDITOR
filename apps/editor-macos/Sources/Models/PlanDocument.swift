@@ -9,6 +9,33 @@ enum PlanMutationError: Error {
     case serializationFailed
 }
 
+struct ProgressionSettings: Equatable {
+    var mode: String
+    var repsFirst: Bool
+    var loadIncrementKg: Double?
+    var capRpe: Double?
+
+    var isEmpty: Bool {
+        mode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    func toDictionary() -> [String: Any]? {
+        let trimmed = mode.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        var output: [String: Any] = [
+            "mode": trimmed,
+            "reps_first": repsFirst
+        ]
+        if let loadIncrementKg = loadIncrementKg {
+            output["load_increment_kg"] = loadIncrementKg
+        }
+        if let capRpe = capRpe {
+            output["cap_rpe"] = capRpe
+        }
+        return output
+    }
+}
+
 class PlanDocument: ObservableObject {
     private enum Defaults {
         static let restSeconds = 90
@@ -66,6 +93,24 @@ class PlanDocument: ObservableObject {
 
     var unit: String {
         parsed?["unit"] as? String ?? "kg"
+    }
+
+    func getProgressionSettings() -> ProgressionSettings? {
+        guard let progression = parsed?["progression"] as? [String: Any] else {
+            return nil
+        }
+
+        let mode = progression["mode"] as? String ?? ""
+        let repsFirst = progression["reps_first"] as? Bool ?? false
+        let loadIncrementKg = (progression["load_increment_kg"] as? NSNumber)?.doubleValue
+        let capRpe = (progression["cap_rpe"] as? NSNumber)?.doubleValue
+
+        return ProgressionSettings(
+            mode: mode,
+            repsFirst: repsFirst,
+            loadIncrementKg: loadIncrementKg,
+            capRpe: capRpe
+        )
     }
 
     var dictionary: [String: String] {
@@ -484,6 +529,34 @@ class PlanDocument: ObservableObject {
     func addExercise(code: String, name: String) throws {
         let updatedJSON = try RustBridge.addExercise(code: code, name: name, to: planJSON)
         updatePlan(updatedJSON)
+    }
+
+    func updatePlanMetadata(name: String, author: String?, unit: String, progression: ProgressionSettings?) {
+        do {
+            try mutatePlanDictionary { root in
+                let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmedName.isEmpty {
+                    root["name"] = trimmedName
+                }
+
+                let trimmedAuthor = author?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                if trimmedAuthor.isEmpty {
+                    root.removeValue(forKey: "author")
+                } else {
+                    root["author"] = trimmedAuthor
+                }
+
+                root["unit"] = unit
+
+                if let progressionDict = progression?.toDictionary() {
+                    root["progression"] = progressionDict
+                } else {
+                    root.removeValue(forKey: "progression")
+                }
+            }
+        } catch {
+            print("Failed to update plan metadata: \(error)")
+        }
     }
 
     /// Validate the plan
