@@ -1,7 +1,7 @@
 /target
 build
 .build
-docs
+docs/INTERNAL*
 logs
 outbox
 */.DS_Store
