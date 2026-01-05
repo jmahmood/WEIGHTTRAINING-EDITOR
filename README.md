@@ -27,7 +27,6 @@
 
 ---
 
-
 **Plan Studio** is a native desktop editor for authoring and validating weight training plans used by **RED ✪ STAR Weightlifting**. It is designed for offline-first plan creation, deterministic exports, and long-term durability of strength programming data.
 
 The application targets self-coached lifters who want precise control over programming without relying on cloud services or mobile devices during training.
@@ -73,7 +72,7 @@ Supported execution targets:
   Apple Watch–based execution. Supports a subset of PLAN v0.3 and v0.4.
 
 - **Basic Weightlifting (ROCKNIX / Anbernic devices)**  
-  Legacy handheld executor targeting PLAN v0.3. Installation friction is high and device support is limited.
+  Legacy handheld executor targeting PLAN v0.3. Device support is limited to the RG35XX Plus and related devices running ROCKNIX.
 
 The desktop editor is the **authoritative source of truth** for plans across all targets.
 
@@ -180,6 +179,15 @@ Any breaking PLAN changes are gated behind explicit version bumps and migration 
 ## License
 
 See repository license files.
+
+---
+
+## Current Status
+
+Feature,macOS (SwiftUI),Linux (GTK4),CLI (comp)
+PLAN Version,v0.4 (Full),v0.3 (v0.4 Pending),v0.4
+Primary Use,Authoring,Authoring,Automation/CI
+Status,Reference,Active Dev,Stable
 
 ---
 
