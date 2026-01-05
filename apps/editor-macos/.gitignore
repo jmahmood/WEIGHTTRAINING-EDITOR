@@ -1,0 +1,19 @@
+# Build outputs
+build/
+.build/
+*.app
+*.zip
+
+# Xcode
+xcuserdata/
+*.xcworkspace
+DerivedData/
+
+# Swift Package Manager
+.swiftpm/
+
+# Code signing credentials (never commit these!)
+.env.signing
+
+# macOS
+.DS_Store

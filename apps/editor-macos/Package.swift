@@ -24,6 +24,7 @@ let package = Package(
             exclude: ["CFFIBridge"],
             linkerSettings: [
                 .unsafeFlags(["-L../../target/release"]),
+                .unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"]),
                 .linkedLibrary("weightlifting_ffi")
             ]
         )

@@ -11,6 +11,19 @@ cd "$(dirname "$0")/../.."
 
 LIB_NAME="libweightlifting_ffi.dylib"
 
+check_rust_target() {
+    local arch="$1"
+    local target="$2"
+
+    # Check if target is installed
+    if ! rustup target list --installed 2>/dev/null | grep -q "^${target}$"; then
+        echo "Error: Rust target '$target' not installed (required for $arch)"
+        echo "Install with: rustup target add $target"
+        return 1
+    fi
+    return 0
+}
+
 build_target() {
     local arch="$1"
     local target="$2"
@@ -21,6 +34,22 @@ build_target() {
 RUST_LIB_PATHS=()
 
 if [ -n "$ARCHS" ]; then
+    # Validate all required targets are installed before building
+    for arch in $ARCHS; do
+        case "$arch" in
+            arm64)
+                check_rust_target "$arch" "aarch64-apple-darwin" || exit 1
+                ;;
+            x86_64)
+                check_rust_target "$arch" "x86_64-apple-darwin" || exit 1
+                ;;
+            *)
+                echo "Warning: Unsupported ARCHS entry '$arch' - skipping"
+                ;;
+        esac
+    done
+
+    # Build for each architecture
     for arch in $ARCHS; do
         case "$arch" in
             arm64)
@@ -32,7 +61,7 @@ if [ -n "$ARCHS" ]; then
                 RUST_LIB_PATHS+=("target/x86_64-apple-darwin/release/$LIB_NAME")
                 ;;
             *)
-                echo "Warning: Unsupported ARCHS entry '$arch' - skipping"
+                # Already warned above
                 ;;
         esac
     done
@@ -52,6 +81,10 @@ else
     echo "Error: no Rust dylib produced"
     exit 1
 fi
+
+# Set the install name so Swift embeds the correct path
+echo "Setting dylib install name..."
+install_name_tool -id "@rpath/$LIB_NAME" "target/release/$LIB_NAME"
 
 echo "Rust library built successfully at target/release/$LIB_NAME"
 
