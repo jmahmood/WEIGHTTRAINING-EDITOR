@@ -121,7 +121,7 @@ This project implements the **Red Star PLAN JSON specification**.
 - v0.4: Adds week-dependent overlays, group variants, and non-weight load axes.
 
 **Every v0.3 plan is valid v0.4.**  
-Detailed specification lives in `PLAN_04.md`.
+Detailed specification lives in `docs/PLAN_04.md`.
 
 ---
 
