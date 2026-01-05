@@ -15,6 +15,8 @@ struct InlineSegmentEditorV2: View {
     @State private var restSec: Int = 120
     @State private var rpe: Double = 8.0
     @State private var notes: String = ""
+    @State private var exerciseCode: String = ""
+    @State private var exerciseName: String = ""
     @State private var altGroup: String? = nil
     @State private var groupRole: String? = nil
     @State private var perWeekJSON: String = ""
@@ -32,6 +34,10 @@ struct InlineSegmentEditorV2: View {
 
     private var isFirstResponder: Bool {
         focusedField != nil
+    }
+
+    private var usesExercise: Bool {
+        ["straight", "rpe", "percentage", "amrap"].contains(segment.type)
     }
 
     var body: some View {
@@ -64,6 +70,19 @@ struct InlineSegmentEditorV2: View {
             }
 
             // Always-editable fields
+            if usesExercise {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Exercise")
+                        .font(.caption)
+                    ExercisePicker(
+                        plan: plan,
+                        selectedExerciseCode: $exerciseCode,
+                        selectedExerciseName: $exerciseName
+                    )
+                    .onChange(of: exerciseCode) { _ in hasChanges = true }
+                }
+            }
+
             HStack {
                 Text("Sets:")
                     .frame(width: 60, alignment: .leading)
@@ -185,7 +204,7 @@ struct InlineSegmentEditorV2: View {
 
                 Text("Resistance Target")
                     .font(.caption)
-                if let exerciseCode = segment.exerciseCode {
+                if !exerciseCode.isEmpty {
                     let loadAxes = plan.getLoadAxesForExercise(exerciseCode)
                     if loadAxes.isEmpty {
                         Text("No alternative resistance types defined for this exercise.")
@@ -213,6 +232,12 @@ struct InlineSegmentEditorV2: View {
         .onAppear {
             activeSegment = segment
             loadCurrentValues()
+        }
+        .onExitCommand {
+            if hasChanges {
+                loadCurrentValues()
+                hasChanges = false
+            }
         }
         .onChange(of: segment.id) { _ in
             if hasChanges {
@@ -249,6 +274,11 @@ struct InlineSegmentEditorV2: View {
         }
 
         updatedDict["sets"] = sets
+        if !exerciseCode.isEmpty {
+            updatedDict["ex"] = exerciseCode
+        } else {
+            updatedDict.removeValue(forKey: "ex")
+        }
 
         if useRepsRange {
             updatedDict["reps"] = ["min": repsMin, "max": repsMax]
@@ -317,6 +347,12 @@ struct InlineSegmentEditorV2: View {
 
     private func loadCurrentValues() {
         sets = segment.intValue("sets") ?? 3
+        exerciseCode = segment.exerciseCode ?? ""
+        if !exerciseCode.isEmpty {
+            exerciseName = plan.dictionary[exerciseCode] ?? exerciseCode
+        } else {
+            exerciseName = ""
+        }
 
         if let repsValue = segment.segmentDict["reps"] {
             if let repsDict = repsValue as? [String: Any],

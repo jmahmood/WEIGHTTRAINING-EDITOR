@@ -118,6 +118,16 @@ class PlanDocument: ObservableObject {
         return ["strength", "volume", "endurance"]
     }
 
+    func firstGroupContaining(exerciseCode: String) -> String? {
+        let groupNames = groups.keys.sorted()
+        for name in groupNames {
+            if let exercises = groups[name], exercises.contains(exerciseCode) {
+                return name
+            }
+        }
+        return nil
+    }
+
     func getExerciseMeta() -> [String: ExerciseMeta] {
         guard let metaAny = parsed?["exercise_meta"] as? [String: Any] else {
             return [:]

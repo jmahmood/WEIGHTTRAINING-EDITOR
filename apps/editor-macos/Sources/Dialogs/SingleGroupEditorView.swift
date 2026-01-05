@@ -12,6 +12,7 @@ struct SingleGroupEditorView: View {
     @State private var newExercise = ""
     @State private var newExerciseName = ""
     @State private var groupVariants: [String: [String: [String: JSONValue]]] = [:]
+    @State private var draftDefaults: [String: [String: RoleRepsRange]] = [:]
 
     private let roles: [(id: String, label: String)] = [
         ("strength", "Strength"),
@@ -27,6 +28,11 @@ struct SingleGroupEditorView: View {
         self.onDelete = onDelete
         _editableExercises = State(initialValue: exercises)
         _groupVariants = State(initialValue: plan.getGroupVariants()[groupName] ?? [:])
+        var defaults: [String: [String: RoleRepsRange]] = [:]
+        for exercise in exercises {
+            defaults[exercise] = plan.getRoleRepsDefaults(for: exercise)
+        }
+        _draftDefaults = State(initialValue: defaults)
     }
 
     var body: some View {
@@ -105,6 +111,7 @@ struct SingleGroupEditorView: View {
 
                 Button("Save") {
                     onSave(editableExercises, cleanedVariants())
+                    applyDefaultsUpdates()
                     dismiss()
                 }
                 .keyboardShortcut(.return)
@@ -135,6 +142,9 @@ struct SingleGroupEditorView: View {
         guard !editableExercises.contains(code) else { return }
         editableExercises.append(code)
         let defaults = plan.getRoleRepsDefaults(for: code)
+        if draftDefaults[code] == nil {
+            draftDefaults[code] = defaults
+        }
         for role in roles.map(\.id) {
             if let range = defaults[role] {
                 setOverride(role: role, exercise: code, range: range)
@@ -160,6 +170,19 @@ struct SingleGroupEditorView: View {
             Spacer()
 
             HStack(spacing: 4) {
+                Menu {
+                    Button("Defaults → Group") {
+                        copyDefaultsToGroup(exercise: exerciseCode)
+                    }
+                    Button("Group → Defaults") {
+                        copyGroupToDefaults(exercise: exerciseCode)
+                    }
+                } label: {
+                    Image(systemName: "arrow.left.arrow.right")
+                }
+                .menuStyle(BorderlessButtonMenuStyle())
+                .help("Copy rep ranges between group overrides and exercise defaults")
+
                 Button(action: { moveUp(index) }) {
                     Image(systemName: "arrow.up")
                 }
@@ -183,7 +206,7 @@ struct SingleGroupEditorView: View {
     }
 
     private func roleCell(roleId: String, exerciseCode: String) -> some View {
-        let defaultRange = plan.getRoleRepsDefaults(for: exerciseCode)[roleId]
+        let defaultRange = draftDefaults[exerciseCode]?[roleId] ?? plan.getRoleRepsDefaults(for: exerciseCode)[roleId]
         let overrideRange = getOverride(role: roleId, exercise: exerciseCode)
         let displayRange = overrideRange ?? defaultRange
         let isDefault = overrideRange == nil && defaultRange != nil
@@ -289,6 +312,49 @@ struct SingleGroupEditorView: View {
                 }
             }
         )
+    }
+
+    private func copyDefaultsToGroup(exercise: String) {
+        let defaults = draftDefaults[exercise] ?? plan.getRoleRepsDefaults(for: exercise)
+        for role in roles.map(\.id) {
+            if let range = defaults[role], range.min > 0, range.max > 0 {
+                setOverride(role: role, exercise: exercise, range: range)
+            } else {
+                clearOverride(role: role, exercise: exercise)
+            }
+        }
+    }
+
+    private func copyGroupToDefaults(exercise: String) {
+        var updated = draftDefaults[exercise] ?? plan.getRoleRepsDefaults(for: exercise)
+        for role in roles.map(\.id) {
+            if let range = effectiveRange(role: role, exercise: exercise),
+               range.min > 0, range.max > 0 {
+                updated[role] = range
+            } else {
+                updated.removeValue(forKey: role)
+            }
+        }
+        draftDefaults[exercise] = updated
+    }
+
+    private func effectiveRange(role: String, exercise: String) -> RoleRepsRange? {
+        if let override = getOverride(role: role, exercise: exercise) {
+            return override
+        }
+        return draftDefaults[exercise]?[role] ?? plan.getRoleRepsDefaults(for: exercise)[role]
+    }
+
+    private func applyDefaultsUpdates() {
+        let exerciseSet = Set(editableExercises)
+        for exercise in exerciseSet {
+            let draft = draftDefaults[exercise] ?? [:]
+            let cleaned = draft.filter { $0.value.min > 0 && $0.value.max > 0 }
+            if cleaned == plan.getRoleRepsDefaults(for: exercise) {
+                continue
+            }
+            plan.updateExerciseRoleDefaults(for: exercise, roleReps: cleaned)
+        }
     }
 
     private func cleanedVariants() -> [String: [String: [String: JSONValue]]] {

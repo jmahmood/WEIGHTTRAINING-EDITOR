@@ -281,12 +281,13 @@ struct InlineSupersetEditor: View {
             if let note = ex.note, !note.isEmpty {
                 exDict["note"] = note
             }
-            if let altGroup = ex.altGroup, !altGroup.isEmpty {
+            let resolvedGroup = ex.altGroup ?? (ex.groupRole == nil ? nil : plan.firstGroupContaining(exerciseCode: ex.exerciseCode))
+            if let altGroup = resolvedGroup, !altGroup.isEmpty {
                 exDict["alt_group"] = altGroup
             }
             if let groupRole = ex.groupRole,
                !groupRole.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                if let altGroup = ex.altGroup {
+                if let altGroup = resolvedGroup {
                     plan.ensureGroupRoleExists(groupId: altGroup, roleId: groupRole)
                 }
                 exDict["group_role"] = groupRole
@@ -363,14 +364,15 @@ struct ExerciseEditor: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Group Focus")
                         .font(.caption)
+                    let focusGroup = exercise.altGroup ?? plan.firstGroupContaining(exerciseCode: exercise.exerciseCode)
                     GroupRolePicker(
-                        groupId: exercise.altGroup,
-                        availableRoles: exercise.altGroup.map { plan.getRolesForGroup($0) } ?? [],
+                        groupId: focusGroup,
+                        availableRoles: focusGroup.map { plan.getRolesForGroup($0) } ?? [],
                         selectedRole: $exercise.groupRole
                     )
                     .onChange(of: exercise.groupRole) { _ in onChange() }
-                    if exercise.groupRole != nil && exercise.altGroup == nil {
-                        Text("Group focus requires an alternative group.")
+                    if exercise.groupRole != nil && focusGroup == nil {
+                        Text("Group focus requires a group.")
                             .font(.caption)
                             .foregroundColor(.orange)
                     }
