@@ -143,7 +143,15 @@ struct InlineSupersetEditor: View {
             loadCurrentValues()
         }
         .onChange(of: segment.id) { _ in
+            if hasChanges {
+                saveChanges()
+            }
             loadCurrentValues()
+        }
+        .onDisappear {
+            if hasChanges {
+                saveChanges()
+            }
         }
         .onChange(of: appState.shouldFocusInspector) { shouldFocus in
             if shouldFocus {
