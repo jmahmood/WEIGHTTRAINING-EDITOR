@@ -113,15 +113,35 @@ These metrics feed both CLI charts and editor visualizations.
 
 ---
 
-## PLAN Format
+## The PLAN Format
 
-This project implements the **Red Star PLAN JSON specification**.
+In contrast to generic fitness logs or spreadsheets, the **RED ✪ STAR PLAN** format is semantically aware of strength training logic. It models complex progression rules and validates them before they ever reach the gym floor.  Any app that uses the open PLAN format document has both native editors and can implement the following.
 
-- v0.3: Stable, widely supported.
-- v0.4: Adds week-dependent overlays, group variants, and non-weight load axes.
+### 1. Advanced Programming Logic
 
-**Every v0.3 plan is valid v0.4.**  
-Detailed specification lives in `docs/PLAN_04.md`.
+* **Anchored Prescriptions:** Define back-off sets as a percentage of a top set performed earlier in the session (e.g., *“5 sets at 80% of today’s Top Single”*).
+* **Week-Dependent Overlays (Wave Loading):** Alter volume, intensity, or rep ranges per week without rewriting the segment (e.g., implementing 5/3/1 or tapering cycles).
+* **Smart Substitutions:** Define substitution groups with "Roles." A substitute exercise can automatically adjust its rep range depending on whether it is being used for a "Heavy" or "Volume" slot.
+
+### 2. Complex Structures
+
+* **First-Class Intensifiers:** Native support for **Drop sets** (with drop %), **Cluster sets** (with intra-set rest), **Myo-reps**, and **Rest-Pause**.
+* **Barbell Complexes:** Model single-bar flows where multiple movements (Clean → Front Squat → Jerk) share a single load and set index.
+* **Supersets & Contrast:** Supports standard pairings and **Contrast/PAP** (Post-Activation Potentiation) logic where strength work pairs with plyometrics.
+
+### 3. Precision Constraints
+
+* **Velocity Based Training (VBT):** Embed velocity targets (`target_mps`) and fatigue cut-offs (`loss_cap_pct`) directly into the plan.
+* **Structured Tempo:** Explicitly define eccentric, bottom, concentric, and top phases in seconds.
+* **Non-Weight Load Axes:** Validate inputs for non-plate loaded equipment, such as specific band colors or machine pin settings.
+
+### 4. Strict Validation
+
+The editor uses a Rust-based engine to prevent logical errors before export:
+
+* Enforces **Reps XOR Time** (a set cannot be both a rep target and a time hold).
+* Validates that **Anchors** reference valid, preceding set indices.
+* Ensures **RPE vs. RIR** logic is consistent (RPE takes precedence if both are present).
 
 ---
 
@@ -145,8 +165,6 @@ The application uses platform-standard directories and creates them on demand.
 - **Drafts**: autosaved working copies
 - **Metrics**: cached, reproducible outputs
 
-No opaque databases, no cloud state.
-
 ---
 
 ## Build & Run (Summary)
@@ -164,7 +182,7 @@ cd apps/editor-macos
 ./create-app-bundle.sh
 ```
 
-Unsigned builds are sufficient for local use. Code signing is optional and documented.
+Unsigned builds are sufficient for local use. Code signing is optional and documented below.
 
 ---
 
